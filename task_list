@@ -1,3 +1,9 @@
+ * formalize below tasks and complete simple tasks
+
+ * add queries in bufferpool to check if the page is dirty
+ * and to check if a page exists in bufferpool
+ * return if the page was flushed to disk on not in the return value of downgrade and relase writer lock
+
  * define block_io_ops
    with api similar to
    void* block_io_ops_handle;
@@ -9,6 +15,10 @@
    * max_write_buffers
    * max_read_buffers
    * pthread_mutex_t* external
+
+ * implement integral_round_up and integral_round_down macros in cutlery, like:
+   integral_round_down(x, m) (x / m) * m
+   integral_round_up(x, m)   ((x / m) + ((x % m) > 0)) * m
    
  * suggested api
    uint64_t write_log_record(const logger_handle* handle, const void* log_record, uint32_t log_record_size); // returns log sequence number
@@ -25,6 +35,8 @@
    // the prev of first and next of last returns 0
    * void* get_log_record_at(const logger_handle* handle, uint64_t log_sequence_number); // you must free the log record
    // the above query must be made only when you know that the given log+sequence_number is valid and must be between first and last log sequence number
+
+   // above 3 queries use the bufferpool and if any of the data is already in the current write buffer, then it is read from there instead of the bufferpool
 
    // a log sequence number between 0 to block_size - 1 both inclusive are invalid
    // INVALID_LOG_SEQUENCE_NUMBER == 0
