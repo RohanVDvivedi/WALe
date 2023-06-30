@@ -1,13 +1,40 @@
+ * define block_io_ops
+   with api similar to
+   void* block_io_ops_handle;
+   int read_blocks(void* block_io_ops_handle, void* dest, uint64_t block_id, uint64_t block_count);
+   int write_blocks(void* block_io_ops_handle, const void* src, uint64_t block_id, uint64_t block_count);
+
  * WAL logger takes in following parameters
-   read_blocks(void* dest, uint64_t block_id, uint64_t block_count, const void* context);
-   write_blocks(const void* src, uint64_t block_id, uint64_t block_count, const void* context);
+   * block_io_ops
+   * max_write_buffers
+   * max_read_buffers
+   * pthread_mutex_t* external
+   
  * suggested api
    uint64_t write_log_record(const logger_handle* handle, const void* log_record, uint32_t log_record_size); // returns log sequence number
    uint64_t get_flushed_log_sequence_number(const logger_handle* handle); // latest log sequence number that has been flushed to disk
-   uint64_t get_last_log_sequence_number(const logger_handle* handle);  // last log sequence number that been written, but it may not flushed to disk
+   // last_log_sequence_number as mentioned in the master record
    uint64_t flush_all_log_records(const logger_handle* handle); // returns flushed log sequence number, after flushing all the log records
+     * will first flush all the log records and then flush the master record only then the record is said to be flushed
+   * uint64_t get_first_log_sequence_number_of(const logger_handle* handle);
+   * uint64_t get_last_log_sequence_number_of(const logger_handle* handle);
+   // returns the first and last log sequence number as found on the master record
+   * uint64_t get_next_log_sequence_number_of(const logger_handle* handle, uint64_t log_sequence_number);
+   * uint64_t get_prev_log_sequence_number_of(const logger_handle* handle, uint64_t log_sequence_number);
+   // above 2 queries can only be done for log records between first_log_sequence_number and last_log_sequence_number
+   // the prev of first and next of last returns 0
+   * void* get_log_record_at(const logger_handle* handle, uint64_t log_sequence_number); // you must free the log record
+   // the above query must be made only when you know that the given log+sequence_number is valid and must be between first and last log sequence number
+
+   // a log sequence number between 0 to block_size - 1 both inclusive are invalid
+   // INVALID_LOG_SEQUENCE_NUMBER == 0
+
  * now the log sequence number is the offset of the log record in context
- * each log record stores the size of the current log record (including the prefix mentioned here, hence it will always be non-zero) -> this allows going forward
+ * each log record stores the size of the current log record in the prefix and the suffix of the log record, it includes the 8 bytes used for the prefix and suffix
  * each log file has a master record at offset 0, and size equal to the block size
- * each master record stores last_flushed_log_sequence_number
+ * each master record stores
+   * uint64_t first_log_sequence_number -> the log record at block_id = 1 -> offset = block_size
+   * uint64_t last_log_sequence_number  -> this log recod can be found at (last_log_sequence_number - first_log_sequence_number) + block_size
+
+ * all uintN_t values stored on the log records are little endian
 
