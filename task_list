@@ -16,9 +16,9 @@
    * max_read_buffers
    * pthread_mutex_t* external
 
- * implement integral_round_up and integral_round_down macros in cutlery, like:
-   integral_round_down(x, m) (x / m) * m
-   integral_round_up(x, m)   ((x / m) + ((x % m) > 0)) * m
+ * implement ALIGN_DOWN and ALIGN_UP macros in cutlery, like:
+   ALIGN_DOWN(x, align_at) (((x) / (align_at)) * (align_at))
+   ALIGN_UP(x, align_at)   ( ALIGN_DOWN(x, align_at) + (((x) % (align_at)) ? (align_at) : 0) )
    
  * suggested api
    uint64_t write_log_record(const logger_handle* handle, const void* log_record, uint32_t log_record_size); // returns log sequence number
