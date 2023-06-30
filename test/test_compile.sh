@@ -1,2 +1,1 @@
-gcc ./test.c -o test.out -lcapp
-./test.out
+gcc ./test.c -o test.out -lwale
