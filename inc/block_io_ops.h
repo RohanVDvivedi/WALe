@@ -8,6 +8,9 @@ struct block_io_ops
 {
 	const void* block_io_ops_handle;
 
+	// block size to be used with this block_io_ops_handle
+	uint64_t block_size;
+
 	// all the below functions return 1 on success and 0 on failure
 
 	// read contiguous block_count number of blocks from disk starting at block_id into the memory pointed by dest
