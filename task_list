@@ -1,8 +1,5 @@
  * formalize below tasks and complete simple tasks
 
- * add queries in bufferpool to check if the page is dirty
- * and to check if a page exists in bufferpool
-
  * define block_io_ops
    with api similar to
    void* block_io_ops_handle;
