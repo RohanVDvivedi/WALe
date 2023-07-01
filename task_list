@@ -1,11 +1,5 @@
  * formalize below tasks and complete simple tasks
 
- * define block_io_ops
-   with api similar to
-   void* block_io_ops_handle;
-   int read_blocks(void* block_io_ops_handle, void* dest, uint64_t block_id, uint64_t block_count);
-   int write_blocks(void* block_io_ops_handle, const void* src, uint64_t block_id, uint64_t block_count);
-
  * WAL logger takes in following parameters
    * block_io_ops
    * max_write_buffers
