@@ -2,7 +2,6 @@
 
  * add queries in bufferpool to check if the page is dirty
  * and to check if a page exists in bufferpool
- * return if the page was flushed to disk on not in the return value of downgrade and relase writer lock
 
  * define block_io_ops
    with api similar to
