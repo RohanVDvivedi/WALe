@@ -21,7 +21,11 @@ struct wale
 	// --------------------------------------------------------
 
 	// this is the contents of the block file, at block_id 0
-	// it contains first_log_sequence_number, last_flushed_log_sequence_number and check_point_log_sequence_number
+	// it contains
+	// * first_log_sequence_number
+	// * last_flushed_log_sequence_number
+	// * check_point_log_sequence_number
+	// * next_log_sequence_number -> log_sequence_number that would come after the last_flushed_log_sequence_number
 	// master_log_record is always block_io_functions.block_size sized
 	void* master_log_record;
 
@@ -96,5 +100,10 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 
 // returns the last_flushed_log_sequence_number, after the flush
 uint64_t flush_all_log_records(wale* wale_p);
+
+// truncates the log file logically, using only a write to the master record
+// making first_log_sequence_number, last_flushed_log_sequence_number and check_point_log_sequence_number = 0
+// next_log_sequence_number remains as it is, and that will be the next_log_sequence_number that will be alloted
+int truncate_log_records(wale* wale_p);
 
 #endif
