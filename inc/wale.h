@@ -84,10 +84,17 @@ uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number);
 
 // you must free the returned memory
-void* get_log_record_at(const logger_handle* handle, uint64_t log_sequence_number, uint32_t* log_record_size);
+void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* log_record_size);
 
 // -------------------------------------------------------------
+// append functions
 
+// returns the log record of the last log record inserted
+// check_point is updated in the master record and all log records flushed until it, if is_check_point is set
+// all log records until the newly inserted log record will be flushed, if flush_all_until is set
+uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point, int flush_all_until);
 
+// returns the last_flushed_log_sequence_number, after the flush
+uint64_t flush_all_log_records(wale* wale_p);
 
 #endif
