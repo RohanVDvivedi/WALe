@@ -96,6 +96,7 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 // returns the log record of the last log record inserted
 // check_point is updated in the master record and all log records flushed until it, if is_check_point is set
 // all log records until the newly inserted log record will be flushed, if flush_all_until is set
+// every log_record will have a uint32_t prefix and suffix both of which will equal to little endian uint32_t
 uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point, int flush_all_until);
 
 // returns the last_flushed_log_sequence_number, after the flush
