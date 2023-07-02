@@ -1,6 +1,3 @@
+define mechanism that would allow concurrent append by alloting only the slot in the lock
 
- * now the log sequence number = the offset of the log record in context - block_size + first_log_sequence_number
- * each log record stores the size of the current log record in the prefix and the suffix of the log record, this size also includes the 8 bytes used for the prefix and suffix
-
- * all uintN_t values stored on the log records are little endian
-
+define read functions, easiest to do
