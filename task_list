@@ -1,10 +1,4 @@
 
- * returns log sequence number of the written log record
- uint64_t write_log_record(const logger_handle* handle, const void* log_record, uint32_t log_record_size);
-
- * will first flush all the log records and then flush the master record only then the record is said to be flushed, it will return the flushed_log_sequence number if the call was successfull
- uint64_t flush_all_log_records(const logger_handle* handle);
-
  * now the log sequence number = the offset of the log record in context - block_size + first_log_sequence_number
  * each log record stores the size of the current log record in the prefix and the suffix of the log record, this size also includes the 8 bytes used for the prefix and suffix
 
