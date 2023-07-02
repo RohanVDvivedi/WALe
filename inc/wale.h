@@ -58,8 +58,36 @@ struct wale
 	block_io_ops block_io_functions;
 }
 
+// -------------------------------------------------------------
+// initialize deinitialize functions for wale
+
 int initialize_wale(wale* wale_p, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count);
 
 void deinitialize_wale(wale* wale_p);
+
+// -------------------------------------------------------------
+// attributes of wale as stored in the master record
+
+uint64_t get_first_log_sequence_number(wale* wale_p);
+
+uint64_t get_last_flushed_log_sequence_number(wale* wale_p);
+
+uint64_t get_check_point_log_sequence_number(wale* wale_p);
+
+// -------------------------------------------------------------
+// random reads in log file are required by the below functions
+// the below functions may only be called for log sequence numbers between first_log_sequence_number and last_flushed_log_sequence_number
+// and only while both of which are valid (!= INVALID_LOG_SEQUENCE_NUMBER)
+
+uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number);
+
+uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number);
+
+// you must free the returned memory
+void* get_log_record_at(const logger_handle* handle, uint64_t log_sequence_number, uint32_t* log_record_size);
+
+// -------------------------------------------------------------
+
+
 
 #endif
