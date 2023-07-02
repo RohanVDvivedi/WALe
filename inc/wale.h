@@ -62,6 +62,10 @@ struct wale
 	block_io_ops block_io_functions;
 }
 
+/*
+** offset of any log record in file = log_sequence_number - first_log_sequence_number + block_io_functions.block_size
+*/
+
 // -------------------------------------------------------------
 // initialize deinitialize functions for wale
 
