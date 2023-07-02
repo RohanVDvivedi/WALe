@@ -56,11 +56,10 @@ struct wale
 
 	// functions to perform contiguous block io
 	block_io_ops block_io_functions;
-
-	// --------------------------------------------------------
-
-	// the bufferpool to perform read only access of log records
-	bufferpool read_only_cache;
 }
+
+int initialize_wale(wale* wale_p, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count);
+
+void deinitialize_wale(wale* wale_p);
 
 #endif
