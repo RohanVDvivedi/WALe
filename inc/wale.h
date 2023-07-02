@@ -27,6 +27,15 @@ struct wale
 
 	// --------------------------------------------------------
 
+	// last log sequence number that was appended
+	// upon a flush the last_log_sequence_number becomes the last_flushed_log_sequence_number, in the master record
+	uint64_t last_log_sequence_number;
+
+	// the log sequence number of the next log record, to be inserted
+	uint64_t next_log_sequence_number;
+
+	// --------------------------------------------------------
+
 	// Append only buffer
 
 	// total memory at buffer = buffer_block_count * block_io_functions.block_size
@@ -47,6 +56,11 @@ struct wale
 
 	// functions to perform contiguous block io
 	block_io_ops block_io_functions;
+
+	// --------------------------------------------------------
+
+	// the bufferpool to perform read only access of log records
+	bufferpool read_only_cache;
 }
 
 #endif
