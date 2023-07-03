@@ -45,18 +45,6 @@ int initialize_wale(wale* wale_p, uint64_t next_log_sequence_number, pthread_mut
 	wale_p->append_offset = 0;
 	wale_p->buffer_start_block_id = 1;
 
-	wale_p->scrolling_up_append_only_buffer_in_progress = 0;
-	wale_p->flush_in_progress = 0;
-
-	wale_p->count_of_ongoing_random_reads = 0;
-	wale_p->count_of_ongoing_append_only_writes = 0;
-
-	pthread_cond_init(&(wale_p->wait_for_flush_to_finish), NULL);
-	wale_p->count_of_threads_waiting_for_flush_to_finish = 0;
-
-	pthread_cond_init(&(wale_p->wait_for_ongoing_accesses_to_finish), NULL);
-	wale_p->count_of_threads_waiting_for_accesses_to_finish = 0;
-
 	return 1;
 }
 
