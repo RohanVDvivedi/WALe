@@ -1,3 +1,5 @@
-define mechanism that would allow concurrent append by alloting only the slot in the lock
+ * in storage byte ordering, change 0xff to ~((UINT8_C)(0))
 
-implement read functions, easiest to do
+ * define mechanism that would allow concurrent append by alloting only the slot in the lock
+
+ * implement read functions, easiest to do
