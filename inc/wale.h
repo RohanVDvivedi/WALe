@@ -98,12 +98,13 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 // append functions
 
 // returns the log record of the last log record inserted
-// check_point is updated in the master record and all log records flushed until it, if is_check_point is set
-// all log records until the newly inserted log record will be flushed, if flush_all_until is set
-// every log_record will have a uint32_t prefix and suffix both of which will equal to little endian uint32_t
-uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point, int flush_all_until);
+// check_point is marked to be updated in the master record, if is_check_point is set
+// the appended log_record is not permanent (neither is it's being checkpointed-ness) until a flush is successfull
+uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point);
 
 // returns the last_flushed_log_sequence_number, after the flush
+// it will first ensure that all the appended log records have been flushed and then it will rewrite the master record and flush it
+// making it point to the new last_flushed_log_sequence_number, next_log_sequence_number and check_point_log_sequence_number
 uint64_t flush_all_log_records(wale* wale_p);
 
 // truncates the log file logically, using only a write to the master record
