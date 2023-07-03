@@ -4,6 +4,7 @@
 #include<storage_byte_ordering.h>
 #include<random_read_util.h>
 #include<append_only_write_util.h>
+#include<master_record_io.h>
 
 #include<cutlery_stds.h>
 #include<cutlery_math.h>
@@ -343,6 +344,44 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 	return log_sequence_number;
 }
 
-uint64_t flush_all_log_records(wale* wale_p);
+uint64_t flush_all_log_records(wale* wale_p)
+{
+	if(wale_p->has_internal_lock)
+		pthread_mutex_lock(get_wale_lock(wale_p));
+
+	while(wale_p->flush_in_progress)
+	{
+		wale_p->flush_completion_waiting_count++;
+		pthread_cond_wait(&(wale_p->flush_completion_waiting), get_wale_lock(wale_p));
+		wale_p->flush_completion_waiting_count--;
+	}
+
+	wale_p->flush_in_progress = 1;
+
+	scroll_append_only_buffer(wale_p);
+
+	pthread_mutex_unlock(get_wale_lock(wale_p));
+
+	wale_p->block_io_functions.flush_all_writes(wale_p->block_io_functions.block_io_ops_handle);
+
+	write_and_flush_master_record(&(wale_p->in_memory_master_record), &(wale_p->block_io_functions));
+
+	// do the below while there are no random readers and no append only writers in the system
+	wale_p->on_disk_master_record = wale_p->in_memory_master_record;
+
+	uint64_t last_flushed_log_sequence_number = wale_p->on_disk_master_record.last_flushed_log_sequence_number;
+
+	pthread_mutex_lock(get_wale_lock(wale_p));
+
+	wale_p->flush_in_progress = 0;
+
+	if(wale_p->flush_completion_waiting_count)
+		pthread_cond_broadcast(&(wale_p->flush_completion_waiting));
+
+	if(wale_p->has_internal_lock)
+		pthread_mutex_unlock(get_wale_lock(wale_p));
+
+	return last_flushed_log_sequence_number;
+}
 
 int truncate_log_records(wale* wale_p);
