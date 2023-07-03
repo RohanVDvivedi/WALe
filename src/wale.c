@@ -1,6 +1,21 @@
 #include<wale.h>
 
-uint64_t get_first_log_sequence_number(wale* wale_p);
+#include<wale_get_lock_util.h>
+
+uint64_t get_first_log_sequence_number(wale* wale_p)
+{
+	if(wale_p->has_internal_lock)
+		pthread_mutex_lock(get_wale_lock(wale_p));
+
+	pthread_mutex_unlock(get_wale_lock(wale_p));
+
+	// TODO
+
+	pthread_mutex_lock(get_wale_lock(wale_p));
+
+	if(wale_p->has_internal_lock)
+		pthread_mutex_unlock(get_wale_lock(wale_p));
+}
 
 uint64_t get_last_flushed_log_sequence_number(wale* wale_p);
 
