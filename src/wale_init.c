@@ -71,5 +71,8 @@ int initialize_wale(wale* wale_p, uint64_t next_log_sequence_number, pthread_mut
 
 void deinitialize_wale(wale* wale_p)
 {
+	free(wale_p->buffer);
 
+	if(wale_p->has_internal_lock)
+		pthread_mutex_destroy(&(wale_p->internal_lock));
 }
