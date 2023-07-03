@@ -96,7 +96,7 @@ uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 
 		uint32_t size_of_log_record = deserialize_le_uint32(size_of_log_record_bytes);
 
-		next_log_sequence_number = log_sequence_number + size_of_log_record;
+		next_log_sequence_number = log_sequence_number + size_of_log_record + 8; // 8 for prefix and suffix size
 
 		FAILED:;
 	}
@@ -137,7 +137,7 @@ uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 
 		uint32_t size_of_prev_log_record = deserialize_le_uint32(size_of_prev_log_record_bytes);
 
-		prev_log_sequence_number = log_sequence_number - size_of_prev_log_record;
+		prev_log_sequence_number = log_sequence_number - size_of_prev_log_record - 8; // 8 for prefix and suffix size of the previous log record
 
 		FAILED:;
 	}
