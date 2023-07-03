@@ -68,6 +68,20 @@ struct wale
 	uint64_t buffer_start_block_id;
 
 	// --------------------------------------------------------
+
+	// number of readers that are performing any io that needs a fixed value of on_disk_master_record
+	uint64_t random_readers_count;
+
+	// number of writers that need the append only buffer to not be scrolled
+	uint64_t append_only_writers_count;
+
+	// counter and condition variable to be used by random readers
+	uint64_t random_readers_waiting_count;
+	pthread_cond_t random_readers_waiting;
+
+	// counter and condition variable to be used by append only writers
+	uint64_t append_only_writers_waiting_count;
+	pthread_cond_t append_only_writers_waiting;
 };
 
 /*
