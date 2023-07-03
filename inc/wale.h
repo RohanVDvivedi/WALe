@@ -80,6 +80,13 @@ struct wale
 	// number of writers that need the append only buffer to not be scrolled
 	uint64_t append_only_writers_count;
 
+	// random_readers and append_only_writers do not block each other
+
+	// a flag to be set to notify a flush is in progress
+	// flush may not start until all the append_only_writers who have entered hve left the section
+	// i.e. will not start until append_only_writers_count > 0, the random_readers_count may be any thing (>=0)
+	int flush_in_progress : 1;
+
 	// counter and condition variable to be used by random readers
 	uint64_t random_readers_waiting_count;
 	pthread_cond_t random_readers_waiting;
@@ -87,6 +94,10 @@ struct wale
 	// counter and condition variable to be used by append only writers
 	uint64_t append_only_writers_waiting_count;
 	pthread_cond_t append_only_writers_waiting;
+
+	// threads wait here for completion of flush
+	uint64_t flush_completion_waiting_count;
+	pthread_cond_t flush_completion_waiting;
 };
 
 /*
