@@ -1,3 +1,1 @@
- * define mechanism that would allow concurrent append by alloting only the slot in the lock
-
- * implement read functions, easiest to do
+ * make it concurrent, since readers read readonly data and writer's only append daa, so they must not block each other
