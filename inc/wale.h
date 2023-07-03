@@ -10,6 +10,10 @@
 // 0 log sequence number will never show up in the wal file
 #define INVALID_LOG_SEQUENCE_NUMBER UINT64_C(0)
 
+/*
+	Every log record is prefixed and suffixed with a uint32_t size, that allows us to mover backwards and forwards in the wale file
+*/
+
 typedef struct master_record master_record;
 struct master_record
 {
