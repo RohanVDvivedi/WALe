@@ -3,6 +3,9 @@
 
 #include<stdint.h>
 #include<inttypes.h>
+#include<pthread.h>
+
+#include<block_io_ops.h>
 
 // 0 log sequence number will never show up in the wal file
 #define INVALID_LOG_SEQUENCE_NUMBER UINT64_C(0)
@@ -88,7 +91,7 @@ struct wale
 
 	// functions to perform contiguous block io
 	block_io_ops block_io_functions;
-}
+};
 
 /*
 ** offset of any log record in file = log_sequence_number - first_log_sequence_number + block_io_functions.block_size
