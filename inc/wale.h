@@ -97,7 +97,12 @@ struct wale
 // -------------------------------------------------------------
 // initialize deinitialize functions for wale
 
-int initialize_wale(wale* wale_p, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count);
+// if next_log_sequence_number is INVALID_LOG_SEQUENCE_NUMBER
+//   -> an existing wale file is initialized, on-disk master record is read from diskx
+// else
+//   -> a new wale file is initialized, a brand new master_record is written to disk
+
+int initialize_wale(wale* wale_p, uint64_t next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count);
 
 void deinitialize_wale(wale* wale_p);
 
