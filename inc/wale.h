@@ -66,7 +66,7 @@ struct wale
 
 	// --------------------------------------------------------
 
-	int scrolling_up_append_only_buffer : 1; // status to check for a scrolling up in progress
+	int scrolling_up_append_only_buffer_in_progress : 1; // status to check for a scrolling up in progress
 
 	int flush_in_progress : 1; // status to check if the flush has started or is in progress
 
@@ -83,10 +83,6 @@ struct wale
 	// wait for ongoing accesses (random reads of flushed log records and appends only writes) to finish
 	pthread_cond_t wait_for_ongoing_accesses_to_finish;
 	uint64_t count_of_threads_waiting_for_accesses_to_finish;
-
-	// wait for scrolling up to finish
-	pthread_cond_t wait_for_append_only_buffer_scrolling_up_to_finish;
-	uint64_t count_of_threads_waiting_for_append_only_buffer_scrolling_up_to_finish;
 
 	// --------------------------------------------------------
 
