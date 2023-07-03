@@ -2,6 +2,12 @@
 
 #include<wale_get_lock_util.h>
 
+#include<storage_byte_ordering.h>
+
+#include<random_read_util.h>
+
+#include<append_only_write_util.h>
+
 uint64_t get_first_log_sequence_number(wale* wale_p)
 {
 	if(wale_p->has_internal_lock)
@@ -65,7 +71,46 @@ uint64_t get_check_point_log_sequence_number(wale* wale_p)
 	return check_point_log_sequence_number;
 }
 
-uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number);
+uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number)
+{
+	if(wale_p->has_internal_lock)
+		pthread_mutex_lock(get_wale_lock(wale_p));
+
+	wale_p->random_readers_count++;
+
+	pthread_mutex_unlock(get_wale_lock(wale_p));
+
+	// set it to INVALID_LOG_SEQUENCE_NUMBER, which is default result
+	uint64_t next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+
+	// if the wale has any records, and its first <= log_sequence_number < last, then read the size and add it to the log_sequence_number to get its next
+	if(wale_p->on_disk_master_record.first_log_sequence_number != INVALID_LOG_SEQUENCE_NUMBER &&
+		wale_p->on_disk_master_record.first_log_sequence_number <= log_sequence_number && 
+		log_sequence_number < wale_p->on_disk_master_record.last_flushed_log_sequence_number
+		)
+	{
+		uint64_t file_offset_of_log_record = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
+
+		char size_of_log_record_bytes[4];
+		if(!random_read_at(size_of_log_record_bytes, 4, file_offset_of_log_record, &(wale_p->block_io_functions)))
+			goto FAILED;
+
+		uint32_t size_of_log_record = deserialize_le_uint32(size_of_log_record_bytes);
+
+		next_log_sequence_number = log_sequence_number + size_of_log_record;
+
+		FAILED:;
+	}
+
+	pthread_mutex_lock(get_wale_lock(wale_p));
+
+	wale_p->random_readers_count++;
+
+	if(wale_p->has_internal_lock)
+		pthread_mutex_unlock(get_wale_lock(wale_p));
+
+	return next_log_sequence_number;
+}
 
 uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number);
 
