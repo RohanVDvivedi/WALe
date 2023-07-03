@@ -4,6 +4,8 @@
 
 #include<stdlib.h>
 
+#include<cutlery_stds.h>
+
 #define OS_PAGE_SIZE 4096
 
 int initialize_wale(wale* wale_p, uint64_t next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count)
@@ -24,9 +26,9 @@ int initialize_wale(wale* wale_p, uint64_t next_log_sequence_number, pthread_mut
 	}
 	else
 	{
-		wale_p->on_disk_master_record.first_log_sequence_number = 0;
-		wale_p->on_disk_master_record.last_flushed_log_sequence_number = 0;
-		wale_p->on_disk_master_record.check_point_log_sequence_number = 0;
+		wale_p->on_disk_master_record.first_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+		wale_p->on_disk_master_record.last_flushed_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+		wale_p->on_disk_master_record.check_point_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 		wale_p->on_disk_master_record.next_log_sequence_number = next_log_sequence_number;
 
 		if(!write_and_flush_master_record(&(wale_p->on_disk_master_record), &(wale_p->block_io_functions)))
@@ -41,9 +43,28 @@ int initialize_wale(wale* wale_p, uint64_t next_log_sequence_number, pthread_mut
 	if(wale_p->buffer == NULL)
 		return 0;
 
-	// read appropriate first block from memory
-	wale_p->append_offset = 0;
-	wale_p->buffer_start_block_id = 1;
+	// there are no log records on the disk
+	if(wale_p->in_memory_master_record.first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
+	{
+		wale_p->append_offset = 0;
+		wale_p->buffer_start_block_id = 1;
+	}
+	else // else read appropriate first block from memory
+	{
+		uint64_t file_offset_to_append_from = wale_p->in_memory_master_record.next_log_sequence_number - wale_p->in_memory_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
+
+		wale_p->append_offset = file_offset_to_append_from % wale_p->block_io_functions.block_size;
+		wale_p->buffer_start_block_id = UINT_ALIGN_DOWN(file_offset_to_append_from, wale_p->block_io_functions.block_size) / wale_p->block_io_functions.block_size;
+
+		if(wale_p->append_offset)
+		{
+			if(!wale_p->block_io_functions.read_blocks(wale_p->block_io_functions.block_io_ops_handle, wale_p->buffer, wale_p->buffer_start_block_id, 1))
+			{
+				free(wale_p->buffer);
+				return 0;
+			}
+		}
+	}
 
 	return 1;
 }
