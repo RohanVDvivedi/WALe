@@ -36,6 +36,9 @@ struct wale
 		pthread_mutex_t  internal_lock;
 	};
 
+	// --------------------------------------------------------
+	// functions to perform contiguous block io
+	block_io_ops block_io_functions;
 
 	// --------------------------------------------------------
 	// cached structured copy of on disk persistent state of the wale's master record
@@ -65,32 +68,6 @@ struct wale
 	uint64_t buffer_start_block_id;
 
 	// --------------------------------------------------------
-	// all updates to the on_disk_master_record, in_memory_master_record and "scrolling up" of the append only buffer must be done while holding the global lock
-
-	// --------------------------------------------------------
-
-	int scrolling_up_append_only_buffer_in_progress : 1; // status to check for a scrolling up in progress
-
-	int flush_in_progress : 1; // status to check if the flush has started or is in progress
-
-	// all of random_reads of flushed records and append only writes can occur concurrently
-	// a flush_all_log_records and truncate_log_records can only happen sequentially as both of them flush the master record
-
-	uint64_t count_of_ongoing_random_reads;         // random readers of flushed records use this count
-	uint64_t count_of_ongoing_append_only_writes;   // append_only writers use this count
-
-	// wait for flush to finish
-	pthread_cond_t wait_for_flush_to_finish;
-	uint64_t count_of_threads_waiting_for_flush_to_finish;
-
-	// wait for ongoing accesses (random reads of flushed log records and appends only writes) to finish
-	pthread_cond_t wait_for_ongoing_accesses_to_finish;
-	uint64_t count_of_threads_waiting_for_accesses_to_finish;
-
-	// --------------------------------------------------------
-
-	// functions to perform contiguous block io
-	block_io_ops block_io_functions;
 };
 
 /*
