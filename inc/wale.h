@@ -12,6 +12,7 @@
 
 /*
 	Every log record is prefixed and suffixed with a uint32_t size, that allows us to mover backwards and forwards in the wale file
+	The size in the suffix and prefix is the actual size of only the log record, and does not contain the size of the prefix and suffix
 */
 
 typedef struct master_record master_record;
