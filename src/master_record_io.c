@@ -18,7 +18,6 @@ int read_master_record(master_record* mr, const block_io_ops* block_io_functions
 	}
 
 	// deserialize
-	// TODO
 	mr->first_log_sequence_number = deserialize_le_uint64(mr_serial);
 	mr->last_flushed_log_sequence_number = deserialize_le_uint64(mr_serial + sizeof(uint64_t));
 	mr->check_point_log_sequence_number = deserialize_le_uint64(mr_serial + 2 * sizeof(uint64_t));
