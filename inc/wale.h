@@ -7,6 +7,22 @@
 // 0 log sequence number will never show up in the wal file
 #define INVALID_LOG_SEQUENCE_NUMBER UINT64_C(0)
 
+typedef struct master_record master_record;
+struct master_record
+{
+	// the log sequence number at offset block_io_functions.block_size in the block file
+	uint64_t first_log_sequence_number;
+
+	// the last log sequence number flushed to the disk
+	uint64_t last_flushed_log_sequence_number;
+
+	// log sequence number of the latest flushed checkpoint log record
+	uint64_t check_point_log_sequence_number;
+
+	// next log sequence number to allot
+	uint64_t next_log_sequence_number;
+};
+
 typedef struct wale wale;
 struct wale
 {
@@ -19,24 +35,13 @@ struct wale
 
 
 	// --------------------------------------------------------
-
-	// this is the contents of the block file, at block_id 0
-	// it contains
-	// * first_log_sequence_number
-	// * last_flushed_log_sequence_number
-	// * check_point_log_sequence_number
-	// * next_log_sequence_number -> log_sequence_number that would come after the last_flushed_log_sequence_number
-	// master_log_record is always block_io_functions.block_size sized
-	void* master_log_record;
+	// cached structured copy of on disk persistent state of the wale's master record
+	master_record on_disk_master_record;
 
 	// --------------------------------------------------------
-
-	// last log sequence number that was appended
-	// upon a flush the last_log_sequence_number becomes the last_flushed_log_sequence_number, in the master record
-	uint64_t last_log_sequence_number;
-
-	// the log sequence number of the next log record, to be inserted
-	uint64_t next_log_sequence_number;
+	// any updates are made here in memory, this master record must be flushed for changes to be persistent
+	// any append_log_record will diverge the in_memory_master_record, from the on_disk_master_record
+	master_record in_memory_master_record;
 
 	// --------------------------------------------------------
 
@@ -100,11 +105,13 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 // returns the log record of the last log record inserted
 // check_point is marked to be updated in the master record, if is_check_point is set
 // the appended log_record is not permanent (neither is it's being checkpointed-ness) until a flush is successfull
+// if the append was unsuccessfull INVALID_LOG_SEQUENCE_NUMBER will be returned
 uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point);
 
 // returns the last_flushed_log_sequence_number, after the flush
 // it will first ensure that all the appended log records have been flushed and then it will rewrite the master record and flush it
 // making it point to the new last_flushed_log_sequence_number, next_log_sequence_number and check_point_log_sequence_number
+// if the flush was unsuccessfull INVALID_LOG_SEQUENCE_NUMBER will be returned
 uint64_t flush_all_log_records(wale* wale_p);
 
 // truncates the log file logically, using only a write to the master record
