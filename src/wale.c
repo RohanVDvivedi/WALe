@@ -205,7 +205,7 @@ uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 
 	return prev_log_sequence_number;
 }
-
+#include<stdio.h>
 void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* log_record_size)
 {
 	if(wale_p->has_internal_lock)
@@ -239,7 +239,7 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 
 		(*log_record_size) = deserialize_le_uint32(size_of_log_record_bytes);
 
-		void* log_record = malloc((*log_record_size));
+		log_record = malloc((*log_record_size));
 		if(log_record == NULL)
 			goto FAILED;
 
