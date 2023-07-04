@@ -378,9 +378,17 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 
 uint64_t flush_all_log_records(wale* wale_p)
 {
+	// return value defaults to INVALID_LOG_SEQUENCE_NUMBER
+	uint64_t last_flushed_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
+	// we can not flush if there has been a major scroll error
+	if(wale_p->major_scroll_error)
+		goto EXIT;
+
+	// wait for any other ongoing flush to exit
 	while(wale_p->flush_in_progress)
 	{
 		wale_p->flush_completion_waiting_count++;
@@ -388,50 +396,77 @@ uint64_t flush_all_log_records(wale* wale_p)
 		wale_p->flush_completion_waiting_count--;
 	}
 
+	// set to indicate that a flush is now in progress
 	wale_p->flush_in_progress = 1;
 
-	wale_p->flush_waiting_for_append_only_writers_to_exit = 1;
-
+	// wait for append only writers to exit, so that we can scroll
+	wale_p->waiting_for_append_only_writers_to_exit_flag = 1;
 	while(wale_p->append_only_writers_count > 0)
 		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
+	wale_p->waiting_for_append_only_writers_to_exit_flag = 0;
 
-	scroll_append_only_buffer(wale_p);
+	// perform a scroll
+	wale_p->scrolling_in_progress = 1;
+	int scroll_success = scroll_append_only_buffer(wale_p);
+	wale_p->scrolling_in_progress = 0;
 
-	wale_p->flush_waiting_for_append_only_writers_to_exit = 0;
-
+	// we do not need the writers to wait after all the records up til now have been written
 	if(wale_p->append_only_writers_waiting_count > 0)
 		pthread_cond_broadcast(&(wale_p->append_only_writers_waiting));
 
+	if(!scroll_success)
+		goto FAILED_EXIT;
+
+	// copy the valid values for flushing the on disk master record, before we release the lock
+	master_record new_on_disk_master_record = wale_p->in_memory_master_record;
+
+	// we can allow the new append only writers from now on
+
+	// release the lock
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 
-	wale_p->block_io_functions.flush_all_writes(wale_p->block_io_functions.block_io_ops_handle);
+	int flush_success = wale_p->block_io_functions.flush_all_writes(wale_p->block_io_functions.block_io_ops_handle) 
+	&& write_and_flush_master_record(&new_on_disk_master_record, &(wale_p->block_io_functions));
 
-	write_and_flush_master_record(&(wale_p->in_memory_master_record), &(wale_p->block_io_functions));
+	if(!flush_success)
+	{
+		pthread_mutex_lock(get_wale_lock(wale_p));
+		goto FAILED_EXIT;
+	}
 
 	pthread_mutex_lock(get_wale_lock(wale_p));
 
-	wale_p->flush_waiting_for_random_readers_to_exit = 1;
-
+	// now we need to install the on_disk_master_record, so we need all readers to exit
+	wale_p->waiting_for_random_readers_to_exit_flag = 1;
 	while(wale_p->random_readers_count > 0)
 		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
 
+	// once all readers have exited, we can install the new_on_disk_master_record to wale_p->on_disk_master_record ..
+	// without the global lock held
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 
-	wale_p->on_disk_master_record = wale_p->in_memory_master_record;
-
-	uint64_t last_flushed_log_sequence_number = wale_p->on_disk_master_record.last_flushed_log_sequence_number;
+	// 
+	wale_p->on_disk_master_record = new_on_disk_master_record;
+	last_flushed_log_sequence_number = wale_p->on_disk_master_record.last_flushed_log_sequence_number;
 
 	pthread_mutex_lock(get_wale_lock(wale_p));
 
-	wale_p->flush_waiting_for_random_readers_to_exit = 0;
-
+	// wake up any readers that are waiting
+	wale_p->waiting_for_random_readers_to_exit_flag = 0;
 	if(wale_p->random_readers_waiting_count > 0)
 		pthread_cond_broadcast(&(wale_p->random_readers_waiting));
 
+	// 
+	FAILED_EXIT:;
+
+	// flush is now finish
 	wale_p->flush_in_progress = 0;
 
+	// wake up any thread waiting for flush to complete
 	if(wale_p->flush_completion_waiting_count)
 		pthread_cond_broadcast(&(wale_p->flush_completion_waiting));
+
+	EXIT:;
 
 	if(wale_p->has_internal_lock)
 		pthread_mutex_unlock(get_wale_lock(wale_p));
