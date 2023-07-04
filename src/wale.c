@@ -353,7 +353,10 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 
 	// this condition implies a fail to scroll the append only buffer
 	if(total_bytes_to_write > 0)
+	{
+		log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 		wale_p->major_scroll_error = 1;
+	}
 
 	// decrement the append only writers count, we are no longer appending
 	wale_p->append_only_writers_count--;
