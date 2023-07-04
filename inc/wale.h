@@ -91,6 +91,7 @@ struct wale
 	pthread_cond_t waiting_for_random_readers_to_exit;
 
 	int flush_waiting_for_append_only_writers_to_exit : 1;
+	int scroller_waiting_for_append_only_writers_to_exit : 1;
 	pthread_cond_t waiting_for_append_only_writers_to_exit;
 
 	// counter and condition variable to be used by random readers

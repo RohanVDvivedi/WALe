@@ -75,6 +75,7 @@ int initialize_wale(wale* wale_p, uint64_t next_log_sequence_number, pthread_mut
 	pthread_cond_init(&(wale_p->waiting_for_random_readers_to_exit), NULL);
 
 	wale_p->flush_waiting_for_append_only_writers_to_exit = 0;
+	wale_p->scroller_waiting_for_append_only_writers_to_exit = 0;
 	pthread_cond_init(&(wale_p->waiting_for_append_only_writers_to_exit), NULL);
 
 	wale_p->random_readers_waiting_count = 0;
