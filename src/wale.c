@@ -300,7 +300,7 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 
 	// we wait while some writer thread wants us to wait OR if the offset for the next_log_sequence_number is not within the append only buffer
 	while(wale_p->waiting_for_append_only_writers_to_exit_flag || wale_p->scrolling_in_progress ||
-		is_file_offset_within_append_only_buffer(wale_p, get_file_offset_for_next_log_sequence_number_to_append(wale_p)))
+		!is_file_offset_within_append_only_buffer(wale_p, get_file_offset_for_next_log_sequence_number_to_append(wale_p)))
 	{
 		wale_p->append_only_writers_waiting_count++;
 		pthread_cond_wait(&(wale_p->append_only_writers_waiting), get_wale_lock(wale_p));
