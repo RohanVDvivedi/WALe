@@ -67,7 +67,9 @@ int main()
 	append_test_log();
 	append_test_log();
 
-	printf("flushed until = %" PRIu64 "\n", flush_all_log_records(&walE));
+	printf("flushed until = %" PRIu64 "\n\n", flush_all_log_records(&walE));
+
+	append_test_log();
 
 	print_all_flushed_logs();
 
