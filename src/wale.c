@@ -239,7 +239,7 @@ static uint64_t get_log_sequence_number_for_next_log_record_and_advance_master_r
 // returns the number of bytes written,
 // it will return lesser than data_size, only if a scroll fails in which case you must exit the application, since we can't receover from this
 // append_slot is advanced by this function, suggesting a write
-static uint64_t append_log_record_data(wale* wale_p, uint64_t* append_slot, const char* data, uint64_t data_size, uint64_t* total_bytes_to_write_for_this_log_record)
+static uint64_t append_log_record_data(wale* wale_p, uint64_t* append_slot, const char* data, uint64_t data_size, uint64_t* total_bytes_to_write_for_this_log_record, int* error_in_scroll)
 {
 	uint64_t bytes_written = 0;
 	while(bytes_written < data_size)
@@ -261,11 +261,11 @@ static uint64_t append_log_record_data(wale* wale_p, uint64_t* append_slot, cons
 			while(wale_p->append_only_writers_count > 1)
 				pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
 
-			int scroll_success = scroll_append_only_buffer(wale_p);
+			(*error_in_scroll) = !scroll_append_only_buffer(wale_p);
 
 			wale_p->scrolling_in_progress = 0;
 
-			if(scroll_success)
+			if(!(*error_in_scroll))
 			{
 				// take the probably the first slot and advance the append_offset to how much we can write at most
 				(*append_slot) = wale_p->append_offset;
@@ -279,7 +279,7 @@ static uint64_t append_log_record_data(wale* wale_p, uint64_t* append_slot, cons
 			pthread_mutex_unlock(get_wale_lock(wale_p));
 
 			// if scroll was a failure we break out of the loop
-			if(!scroll_success)
+			if((*error_in_scroll))
 				break;
 		}
 	}
@@ -333,26 +333,28 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 	char size_in_bytes[4];
 	serialize_le_uint32(size_in_bytes, log_record_size);
 
+	int scroll_error = 0;
+
 	// write prefix
-	uint64_t bytes_written = append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write);
-	if(bytes_written < 4)
+	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
+	if(scroll_error)
 		goto SCROLL_FAIL;
 
 	// write log record itself
-	bytes_written = append_log_record_data(wale_p, &append_slot, log_record, log_record_size, &total_bytes_to_write);
-	if(bytes_written < log_record_size)
+	append_log_record_data(wale_p, &append_slot, log_record, log_record_size, &total_bytes_to_write, &scroll_error);
+	if(scroll_error)
 		goto SCROLL_FAIL;
 
 	// write suffix
-	bytes_written = append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write);
-	if(bytes_written < 4)
+	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
+	if(scroll_error)
 		goto SCROLL_FAIL;
 
 	SCROLL_FAIL:;
 	pthread_mutex_lock(get_wale_lock(wale_p));
 
 	// this condition implies a fail to scroll the append only buffer
-	if(total_bytes_to_write > 0)
+	if(scroll_error)
 	{
 		log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 		wale_p->major_scroll_error = 1;
