@@ -14,7 +14,7 @@
 
 
 #define NUMBERS "0123456789-10111213141516171819-20212223242526272829-30313233343536373839-40414243444546474849-50515253545556575859+0123456789-10111213141516171819-20212223242526272829-30313233343536373839-40414243444546474849-50515253545556575859+0123456789-10111213141516171819-20212223242526272829-30313233343536373839-40414243444546474849-50515253545556575859+0123456789-10111213141516171819-20212223242526272829-30313233343536373839-40414243444546474849-50515253545556575859()0123456789-10111213141516171819-20212223242526272829-30313233343536373839-40414243444546474849-50515253545556575859+0123456789-10111213141516171819-20212223242526272829-30313233343536373839-40414243444546474849-50515253545556575859+0123456789-10111213141516171819-20212223242526272829-30313233343536373839-40414243444546474849-50515253545556575859+0123456789-10111213141516171819-20212223242526272829-30313233343536373839-40414243444546474849-50515253545556575859"
-#define LOG_FORMAT "\nThis is log with size = <%d> <%.*s>\n"
+#define LOG_FORMAT "\nThis is log with size = <%d> <%.*s>"
 
 block_io_ops get_block_io_functions(const block_file* bf);
 
@@ -28,7 +28,7 @@ void append_test_log()
 	uint32_t ls = (((unsigned int)rand()) % strlen(NUMBERS));
 	sprintf(log_buffer, LOG_FORMAT, ls, ls, NUMBERS);
 	uint64_t log_sequence_number = append_log_record(&walE, log_buffer, strlen(log_buffer) + 1, 0);
-	printf("log sequence number written = %" PRIu64 " : %s\n", log_sequence_number, log_buffer);
+	printf("log sequence number written = %" PRIu64 " : %s\n\n", log_sequence_number, log_buffer);
 }
 
 void print_all_flushed_logs()
@@ -40,7 +40,7 @@ void print_all_flushed_logs()
 	{
 		uint32_t log_record_size;
 		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size);
-		printf("%" PRIu64 " : <%s>\n", log_sequence_number, log_record);
+		printf("%" PRIu64 " (size = %u): <%s>\n", log_sequence_number, log_record_size, log_record);
 		free(log_record);
 		log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number);
 	}
