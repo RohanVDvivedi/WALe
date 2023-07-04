@@ -14,7 +14,7 @@
 
 
 #define NUMBERS "0123456789-10111213141516171819-20212223242526272829"
-#define LOG_FORMAT "\nThis is log with <%*.s> random number = <%d>\n"
+#define LOG_FORMAT "\nThis is log with <%.*s> random number = <%d>\n"
 
 block_io_ops get_block_io_functions(const block_file* bf);
 
