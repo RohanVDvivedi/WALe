@@ -290,6 +290,8 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 			pthread_cond_wait(&(wale_p->append_only_writers_waiting), get_wale_lock(wale_p));
 			wale_p->append_only_writers_waiting_count--;
 		}
+		else
+			break;
 	}
 
 	uint64_t log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number;
