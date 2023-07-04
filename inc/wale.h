@@ -72,6 +72,10 @@ struct wale
 	// the first byte in the buffer is at buffer_start_block_id * block_io_functions.block_size
 	uint64_t buffer_start_block_id;
 
+	// this bit will be set, when an unrecoverable scroll error occurs, this error needs a restart of your system
+	// which will also mean a loss of certain wal log records 
+	int major_scroll_error : 1;
+
 	// --------------------------------------------------------
 
 	// number of readers that are performing any io that needs a fixed value of on_disk_master_record
@@ -91,10 +95,10 @@ struct wale
 	// so any append only writer must wait
 	int scrolling_in_progress : 1;
 
-	int waiting_for_random_readers_to_exit : 1;
+	int waiting_for_random_readers_to_exit_flag : 1;
 	pthread_cond_t waiting_for_random_readers_to_exit;
 
-	int waiting_for_append_only_writers_to_exit : 1;
+	int waiting_for_append_only_writers_to_exit_flag : 1;
 	pthread_cond_t waiting_for_append_only_writers_to_exit;
 
 	// counter and condition variable to be used by random readers

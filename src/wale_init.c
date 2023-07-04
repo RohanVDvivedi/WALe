@@ -71,11 +71,12 @@ int initialize_wale(wale* wale_p, uint64_t next_log_sequence_number, pthread_mut
 	wale_p->append_only_writers_count = 0;
 	wale_p->flush_in_progress = 0;
 
-	wale_p->flush_waiting_for_random_readers_to_exit = 0;
+	wale_p->scrolling_in_progress = 0;
+
+	wale_p->waiting_for_random_readers_to_exit_flag = 0;
 	pthread_cond_init(&(wale_p->waiting_for_random_readers_to_exit), NULL);
 
-	wale_p->flush_waiting_for_append_only_writers_to_exit = 0;
-	wale_p->scroller_waiting_for_append_only_writers_to_exit = 0;
+	wale_p->waiting_for_append_only_writers_to_exit_flag = 0;
 	pthread_cond_init(&(wale_p->waiting_for_append_only_writers_to_exit), NULL);
 
 	wale_p->random_readers_waiting_count = 0;

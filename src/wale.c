@@ -18,7 +18,7 @@ static void random_readers_prefix(wale* wale_p)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
 	// wait if some writable task wants us to wait
-	while(wale_p->waiting_for_random_readers_to_exit)
+	while(wale_p->waiting_for_random_readers_to_exit_flag)
 	{
 		wale_p->random_readers_waiting_count++;
 		pthread_cond_wait(&(wale_p->random_readers_waiting), get_wale_lock(wale_p));
@@ -40,7 +40,7 @@ static void random_readers_suffix(wale* wale_p)
 	wale_p->random_readers_count--;
 
 	// if the random_readers_count has reached 0, due to us decrementing it, and there is someone waiting for all the readers to exit, then notify them, i.e. wake them up
-	if(wale_p->random_readers_count == 0 && wale_p->waiting_for_random_readers_to_exit)
+	if(wale_p->random_readers_count == 0 && wale_p->waiting_for_random_readers_to_exit_flag)
 		pthread_cond_broadcast(&(wale_p->waiting_for_random_readers_to_exit));
 
 	// release lock if the lock is internal
@@ -232,6 +232,8 @@ static uint64_t get_log_sequence_number_for_next_log_record_and_advance_master_r
 
 	// set the next_log_sequence_number to the new next_log_sequence_number
 	wale_p->in_memory_master_record.next_log_sequence_number = new_next_log_sequence_number;
+
+	return log_sequence_number;
 }
 
 // returns the number of bytes written,
@@ -249,7 +251,7 @@ static uint64_t append_log_record_data(wale* wale_p, uint64_t* append_slot, cons
 		(*total_bytes_to_write_for_this_log_record) -= bytes_to_write;
 
 		// if append slot is at the end of the wale's append only buffer, then attempt to scroll
-		if(append_slot == wale_p->buffer_block_count * wale_p->block_io_functions.block_size)
+		if((*append_slot) == wale_p->buffer_block_count * wale_p->block_io_functions.block_size)
 		{
 			// scrolling needs global lock
 			pthread_mutex_lock(get_wale_lock(wale_p));
@@ -296,10 +298,8 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 	if(wale_p->major_scroll_error)
 		goto EXIT;
 
-	uint64_t total_bytes_to_write = ((uint64_t)log_record_size) + 8;
-
 	// we wait while some writer thread wants us to wait OR if the offset for the next_log_sequence_number is not within the append only buffer
-	while(wale_p->waiting_for_append_only_writers_to_exit || wale_p->scrolling_in_progress ||
+	while(wale_p->waiting_for_append_only_writers_to_exit_flag || wale_p->scrolling_in_progress ||
 		is_file_offset_within_append_only_buffer(wale_p, get_file_offset_for_next_log_sequence_number_to_append(wale_p)))
 	{
 		wale_p->append_only_writers_waiting_count++;
@@ -362,7 +362,7 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 	wale_p->append_only_writers_count--;
 
 	// wake up any one waiting for append only writers to exit
-	if((wale_p->append_only_writers_count == 0 && wale_p->waiting_for_append_only_writers_to_exit) ||
+	if((wale_p->append_only_writers_count == 0 && wale_p->waiting_for_append_only_writers_to_exit_flag) ||
 		(wale_p->append_only_writers_count == 1 && wale_p->scrolling_in_progress))
 		pthread_cond_broadcast(&(wale_p->waiting_for_append_only_writers_to_exit));
 
