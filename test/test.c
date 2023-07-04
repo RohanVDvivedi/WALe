@@ -6,6 +6,7 @@
 #include<wale.h>
 
 #include<string.h>
+#include<errno.h>
 
 #define ADDITIONAL_FLAGS	0 //| O_DIRECT | O_SYNC
 #define FILENAME			"test.log"
@@ -60,7 +61,7 @@ int main()
 
 	if(!initialize_wale(&walE, (new_file ? 7 : INVALID_LOG_SEQUENCE_NUMBER), NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT))
 	{
-		printf("failed to create wale instance\n");
+		printf("failed to create wale instance (error = %d on fd = %d)\n", errno, bf.file_descriptor);
 		close_block_file(&bf);
 		return -1;
 	}
