@@ -1,1 +1,1 @@
-gcc ./test.c ./test_util.c -o test.out -lwale -lcutlery
+gcc ./test.c ./test_util.c -o test.out -lwale -lcutlery -lblockio

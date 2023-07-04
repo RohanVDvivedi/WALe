@@ -1,6 +1,8 @@
 #ifndef BLOCK_IO_OPS_H
 #define BLOCK_IO_OPS_H
 
+#include<stdint.h>
+
 // block_io_ops is a structure accepted by the bufferpool, it is interface how to read, write contiguous blocks to underlying storage
 
 typedef struct block_io_ops block_io_ops;
