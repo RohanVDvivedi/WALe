@@ -282,7 +282,9 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 		else
 			file_offset_for_next_log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number - wale_p->in_memory_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 
-		if(wale_p->flush_waiting_for_append_only_writers_to_exit || file_offset_for_next_log_sequence_number - (wale_p->buffer_start_block_id * wale_p->block_io_functions.block_size) >= wale_p->buffer_block_count * wale_p->block_io_functions.block_size)
+		if(wale_p->flush_waiting_for_append_only_writers_to_exit || 
+			wale_p->scroller_waiting_for_append_only_writers_to_exit ||
+			file_offset_for_next_log_sequence_number - (wale_p->buffer_start_block_id * wale_p->block_io_functions.block_size) >= wale_p->buffer_block_count * wale_p->block_io_functions.block_size)
 		{
 			wale_p->append_only_writers_waiting_count++;
 			pthread_cond_wait(&(wale_p->append_only_writers_waiting), get_wale_lock(wale_p));
@@ -443,7 +445,18 @@ uint64_t flush_all_log_records(wale* wale_p)
 
 	wale_p->flush_in_progress = 1;
 
+	// wait for all append only writers to exit
+	while(wale_p->append_only_writers_count > 0)
+	{
+		wale_p->flush_waiting_for_append_only_writers_to_exit = 1;
+		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
+		wale_p->flush_waiting_for_append_only_writers_to_exit = 0;
+	}
+
 	scroll_append_only_buffer(wale_p);
+
+	if(wale_p->append_only_writers_waiting_count > 0)
+		pthread_cond_broadcast(&(wale_p->append_only_writers_waiting));
 
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 
@@ -451,12 +464,25 @@ uint64_t flush_all_log_records(wale* wale_p)
 
 	write_and_flush_master_record(&(wale_p->in_memory_master_record), &(wale_p->block_io_functions));
 
-	// do the below while there are no random readers and no append only writers in the system
+	pthread_mutex_lock(get_wale_lock(wale_p));
+
+	wale_p->flush_waiting_for_random_readers_to_exit = 1;
+
+	while(wale_p->random_readers_count > 0)
+		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
+
+	pthread_mutex_unlock(get_wale_lock(wale_p));
+
 	wale_p->on_disk_master_record = wale_p->in_memory_master_record;
 
 	uint64_t last_flushed_log_sequence_number = wale_p->on_disk_master_record.last_flushed_log_sequence_number;
 
 	pthread_mutex_lock(get_wale_lock(wale_p));
+
+	wale_p->flush_waiting_for_random_readers_to_exit = 0;
+
+	if(wale_p->random_readers_waiting_count > 0)
+		pthread_cond_broadcast(&(wale_p->random_readers_waiting));
 
 	wale_p->flush_in_progress = 0;
 
