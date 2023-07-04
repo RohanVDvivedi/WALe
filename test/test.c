@@ -53,7 +53,7 @@ int main()
 	int new_file = 0;
 
 	block_file bf;
-	if(!(new_file = create_and_open_block_file(&bf, FILENAME, ADDITIONAL_FLAGS)) && !open_block_file(&bf, FILENAME, ADDITIONAL_FLAGS | O_TRUNC))
+	if(!(new_file = create_and_open_block_file(&bf, FILENAME, ADDITIONAL_FLAGS)) && !open_block_file(&bf, FILENAME, ADDITIONAL_FLAGS))
 	{
 		printf("failed to create block file\n");
 		return -1;
