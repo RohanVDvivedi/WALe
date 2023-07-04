@@ -48,6 +48,12 @@ static void random_readers_suffix(wale* wale_p)
 		pthread_mutex_unlock(get_wale_lock(wale_p));
 }
 
+/*
+	Every reader function must read only the fluh contents of the WALe file,
+	i.e. after calling random_readers_prefix() they can access only the on_disk_master_record and the file contents for the log_sequence_numbers between (and inclusive of) first_log_sequence_number and last_flushed_log_sequence_number
+	and then call random_readers_suffix() before quiting
+*/
+
 uint64_t get_first_log_sequence_number(wale* wale_p)
 {
 	random_readers_prefix(wale_p);
