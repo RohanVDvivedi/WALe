@@ -1,1 +1,1 @@
-gcc ./test.c -o test.out -lwale
+gcc ./test.c ./test_util.c -o test.out -lwale -lcutlery
