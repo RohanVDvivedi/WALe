@@ -1,1 +1,1 @@
- * make it concurrent, since readers read readonly data and writer's only append daa, so they must not block each other
+ * dry run of the logs and error handling
