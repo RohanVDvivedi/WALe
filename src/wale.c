@@ -11,11 +11,13 @@
 
 #include<stdlib.h>
 
-uint64_t get_first_log_sequence_number(wale* wale_p)
+static void random_readers_prefix(wale* wale_p)
 {
+	// take lock if the lock is internal
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
+	// wait if the thread performing flush wants us to wait
 	while(wale_p->flush_waiting_for_random_readers_to_exit)
 	{
 		wale_p->random_readers_waiting_count++;
@@ -23,102 +25,67 @@ uint64_t get_first_log_sequence_number(wale* wale_p)
 		wale_p->random_readers_waiting_count--;
 	}
 
+	// increment the random_readers_count notifying that there is someone reading now
 	wale_p->random_readers_count++;
 
+	// we perform reads from the wale file and the on_disk_master_record without holding the global lock
 	pthread_mutex_unlock(get_wale_lock(wale_p));
+}
 
-	uint64_t first_log_sequence_number = wale_p->on_disk_master_record.first_log_sequence_number;
-
+static void random_readers_suffix(wale* wale_p)
+{
 	pthread_mutex_lock(get_wale_lock(wale_p));
 
+	// decrement the random_readers_count
 	wale_p->random_readers_count--;
 
+	// if the random_readers_count has reached 0, due to us decrementing it, and there is someone waiting for all the readers to exit, then notify them, i.e. wake them up
 	if(wale_p->random_readers_count == 0 && wale_p->flush_waiting_for_random_readers_to_exit)
 		pthread_cond_broadcast(&(wale_p->waiting_for_random_readers_to_exit));
 
+	// release lock if the lock is internal
 	if(wale_p->has_internal_lock)
 		pthread_mutex_unlock(get_wale_lock(wale_p));
+}
+
+uint64_t get_first_log_sequence_number(wale* wale_p)
+{
+	random_readers_prefix(wale_p);
+
+	uint64_t first_log_sequence_number = wale_p->on_disk_master_record.first_log_sequence_number;
+
+	random_readers_suffix(wale_p);
 
 	return first_log_sequence_number;
 }
 
 uint64_t get_last_flushed_log_sequence_number(wale* wale_p)
 {
-	if(wale_p->has_internal_lock)
-		pthread_mutex_lock(get_wale_lock(wale_p));
-
-	while(wale_p->flush_waiting_for_random_readers_to_exit)
-	{
-		wale_p->random_readers_waiting_count++;
-		pthread_cond_wait(&(wale_p->random_readers_waiting), get_wale_lock(wale_p));
-		wale_p->random_readers_waiting_count--;
-	}
-
-	wale_p->random_readers_count++;
-
-	pthread_mutex_unlock(get_wale_lock(wale_p));
+	random_readers_prefix(wale_p);
 
 	uint64_t last_flushed_log_sequence_number = wale_p->on_disk_master_record.last_flushed_log_sequence_number;
 
 	pthread_mutex_lock(get_wale_lock(wale_p));
 
-	wale_p->random_readers_count--;
-
-	if(wale_p->random_readers_count == 0 && wale_p->flush_waiting_for_random_readers_to_exit)
-		pthread_cond_broadcast(&(wale_p->waiting_for_random_readers_to_exit));
-
-	if(wale_p->has_internal_lock)
-		pthread_mutex_unlock(get_wale_lock(wale_p));
+	random_readers_suffix(wale_p);
 
 	return last_flushed_log_sequence_number;
 }
 
 uint64_t get_check_point_log_sequence_number(wale* wale_p)
 {
-	if(wale_p->has_internal_lock)
-		pthread_mutex_lock(get_wale_lock(wale_p));
-
-	while(wale_p->flush_waiting_for_random_readers_to_exit)
-	{
-		wale_p->random_readers_waiting_count++;
-		pthread_cond_wait(&(wale_p->random_readers_waiting), get_wale_lock(wale_p));
-		wale_p->random_readers_waiting_count--;
-	}
-
-	wale_p->random_readers_count++;
-
-	pthread_mutex_unlock(get_wale_lock(wale_p));
+	random_readers_prefix(wale_p);
 
 	uint64_t check_point_log_sequence_number = wale_p->on_disk_master_record.check_point_log_sequence_number;
 
-	pthread_mutex_lock(get_wale_lock(wale_p));
-
-	wale_p->random_readers_count--;
-
-	if(wale_p->random_readers_count == 0 && wale_p->flush_waiting_for_random_readers_to_exit)
-		pthread_cond_broadcast(&(wale_p->waiting_for_random_readers_to_exit));
-
-	if(wale_p->has_internal_lock)
-		pthread_mutex_unlock(get_wale_lock(wale_p));
+	random_readers_suffix(wale_p);
 
 	return check_point_log_sequence_number;
 }
 
 uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number)
 {
-	if(wale_p->has_internal_lock)
-		pthread_mutex_lock(get_wale_lock(wale_p));
-
-	while(wale_p->flush_waiting_for_random_readers_to_exit)
-	{
-		wale_p->random_readers_waiting_count++;
-		pthread_cond_wait(&(wale_p->random_readers_waiting), get_wale_lock(wale_p));
-		wale_p->random_readers_waiting_count--;
-	}
-
-	wale_p->random_readers_count++;
-
-	pthread_mutex_unlock(get_wale_lock(wale_p));
+	random_readers_prefix(wale_p);
 
 	// set it to INVALID_LOG_SEQUENCE_NUMBER, which is default result
 	uint64_t next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
@@ -142,34 +109,14 @@ uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 		FAILED:;
 	}
 
-	pthread_mutex_lock(get_wale_lock(wale_p));
-
-	wale_p->random_readers_count--;
-
-	if(wale_p->random_readers_count == 0 && wale_p->flush_waiting_for_random_readers_to_exit)
-		pthread_cond_broadcast(&(wale_p->waiting_for_random_readers_to_exit));
-
-	if(wale_p->has_internal_lock)
-		pthread_mutex_unlock(get_wale_lock(wale_p));
+	random_readers_suffix(wale_p);
 
 	return next_log_sequence_number;
 }
 
 uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number)
 {
-	if(wale_p->has_internal_lock)
-		pthread_mutex_lock(get_wale_lock(wale_p));
-
-	while(wale_p->flush_waiting_for_random_readers_to_exit)
-	{
-		wale_p->random_readers_waiting_count++;
-		pthread_cond_wait(&(wale_p->random_readers_waiting), get_wale_lock(wale_p));
-		wale_p->random_readers_waiting_count--;
-	}
-
-	wale_p->random_readers_count++;
-
-	pthread_mutex_unlock(get_wale_lock(wale_p));
+	random_readers_prefix(wale_p);
 
 	// set it to INVALID_LOG_SEQUENCE_NUMBER, which is default result
 	uint64_t prev_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
@@ -193,34 +140,14 @@ uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 		FAILED:;
 	}
 
-	pthread_mutex_lock(get_wale_lock(wale_p));
-
-	wale_p->random_readers_count--;
-
-	if(wale_p->random_readers_count == 0 && wale_p->flush_waiting_for_random_readers_to_exit)
-		pthread_cond_broadcast(&(wale_p->waiting_for_random_readers_to_exit));
-
-	if(wale_p->has_internal_lock)
-		pthread_mutex_unlock(get_wale_lock(wale_p));
+	random_readers_suffix(wale_p);
 
 	return prev_log_sequence_number;
 }
-#include<stdio.h>
+
 void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* log_record_size)
 {
-	if(wale_p->has_internal_lock)
-		pthread_mutex_lock(get_wale_lock(wale_p));
-
-	while(wale_p->flush_waiting_for_random_readers_to_exit)
-	{
-		wale_p->random_readers_waiting_count++;
-		pthread_cond_wait(&(wale_p->random_readers_waiting), get_wale_lock(wale_p));
-		wale_p->random_readers_waiting_count--;
-	}
-
-	wale_p->random_readers_count++;
-
-	pthread_mutex_unlock(get_wale_lock(wale_p));
+	random_readers_prefix(wale_p);
 
 	// set it to NULL, which is default result
 	void* log_record = NULL;
@@ -253,15 +180,7 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 		FAILED:;
 	}
 
-	pthread_mutex_lock(get_wale_lock(wale_p));
-
-	wale_p->random_readers_count--;
-
-	if(wale_p->random_readers_count == 0 && wale_p->flush_waiting_for_random_readers_to_exit)
-		pthread_cond_broadcast(&(wale_p->waiting_for_random_readers_to_exit));
-
-	if(wale_p->has_internal_lock)
-		pthread_mutex_unlock(get_wale_lock(wale_p));
+	random_readers_suffix(wale_p);
 
 	return log_record;
 }
