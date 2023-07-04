@@ -71,8 +71,6 @@ uint64_t get_last_flushed_log_sequence_number(wale* wale_p)
 
 	uint64_t last_flushed_log_sequence_number = wale_p->on_disk_master_record.last_flushed_log_sequence_number;
 
-	pthread_mutex_lock(get_wale_lock(wale_p));
-
 	random_readers_suffix(wale_p);
 
 	return last_flushed_log_sequence_number;
