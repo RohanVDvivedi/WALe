@@ -17,8 +17,8 @@ static void random_readers_prefix(wale* wale_p)
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
-	// wait if the thread performing flush wants us to wait
-	while(wale_p->flush_waiting_for_random_readers_to_exit)
+	// wait if some writable task wants us to wait
+	while(wale_p->waiting_for_random_readers_to_exit)
 	{
 		wale_p->random_readers_waiting_count++;
 		pthread_cond_wait(&(wale_p->random_readers_waiting), get_wale_lock(wale_p));
@@ -40,7 +40,7 @@ static void random_readers_suffix(wale* wale_p)
 	wale_p->random_readers_count--;
 
 	// if the random_readers_count has reached 0, due to us decrementing it, and there is someone waiting for all the readers to exit, then notify them, i.e. wake them up
-	if(wale_p->random_readers_count == 0 && wale_p->flush_waiting_for_random_readers_to_exit)
+	if(wale_p->random_readers_count == 0 && wale_p->waiting_for_random_readers_to_exit)
 		pthread_cond_broadcast(&(wale_p->waiting_for_random_readers_to_exit));
 
 	// release lock if the lock is internal
@@ -191,6 +191,21 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 	return log_record;
 }
 
+static uint64_t get_file_offset_for_next_log_sequence_number_to_append(wale* wale_p)
+{
+	if(wale_p->in_memory_master_record.first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
+		return wale_p->block_io_functions.block_size;
+	else
+		return wale_p->in_memory_master_record.next_log_sequence_number - wale_p->in_memory_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
+}
+
+static int is_file_offset_within_append_only_buffer(wale* wale_p, uint64_t file_offset)
+{
+	if(wale_p->buffer_start_block_id * wale_p->block_io_functions.block_size <= file_offset && file_offset < (wale_p->buffer_start_block_id + wale_p->buffer_block_count) * wale_p->block_io_functions.block_size)
+		return 1;
+	return 0;
+}
+
 uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point)
 {
 	if(wale_p->has_internal_lock)
@@ -198,27 +213,16 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 
 	uint64_t total_bytes_to_write = ((uint64_t)log_record_size) + 8;
 
-	// take slot if the next log sequence number is in the append only buffer
-	while(1)
+	// we wait while some writer thread wants us to wait OR if the offset for the next_log_sequence_number is not within the append only buffer
+	while(wale_p->waiting_for_append_only_writers_to_exit || wale_p->scrolling_in_progress ||
+		is_file_offset_within_append_only_buffer(wale_p, get_file_offset_for_next_log_sequence_number_to_append(wale_p)))
 	{
-		uint64_t file_offset_for_next_log_sequence_number;
-		if(wale_p->in_memory_master_record.first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
-			file_offset_for_next_log_sequence_number = wale_p->block_io_functions.block_size;
-		else
-			file_offset_for_next_log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number - wale_p->in_memory_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
-
-		if(wale_p->flush_waiting_for_append_only_writers_to_exit || 
-			wale_p->scroller_waiting_for_append_only_writers_to_exit ||
-			file_offset_for_next_log_sequence_number - (wale_p->buffer_start_block_id * wale_p->block_io_functions.block_size) >= wale_p->buffer_block_count * wale_p->block_io_functions.block_size)
-		{
-			wale_p->append_only_writers_waiting_count++;
-			pthread_cond_wait(&(wale_p->append_only_writers_waiting), get_wale_lock(wale_p));
-			wale_p->append_only_writers_waiting_count--;
-		}
-		else
-			break;
+		wale_p->append_only_writers_waiting_count++;
+		pthread_cond_wait(&(wale_p->append_only_writers_waiting), get_wale_lock(wale_p));
+		wale_p->append_only_writers_waiting_count--;
 	}
 
+	// take slot if the next log sequence number is in the append only buffer
 	uint64_t log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number;
 
 	if(wale_p->in_memory_master_record.first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
@@ -258,14 +262,14 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 		{
 			pthread_mutex_lock(get_wale_lock(wale_p));
 
-			wale_p->scroller_waiting_for_append_only_writers_to_exit = 1;
+			wale_p->scrolling_in_progress = 1;
 
 			while(wale_p->append_only_writers_count > 1)
 				pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
 
 			scroll_append_only_buffer(wale_p);
 
-			wale_p->scroller_waiting_for_append_only_writers_to_exit = 0;
+			wale_p->scrolling_in_progress = 0;
 
 			append_slot = wale_p->append_offset;
 			wale_p->append_offset = min(wale_p->append_offset + total_bytes_to_write, wale_p->buffer_block_count * wale_p->block_io_functions.block_size);
@@ -293,14 +297,14 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 		{
 			pthread_mutex_lock(get_wale_lock(wale_p));
 
-			wale_p->scroller_waiting_for_append_only_writers_to_exit = 1;
+			wale_p->scrolling_in_progress = 1;
 
 			while(wale_p->append_only_writers_count > 1)
 				pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
 
 			scroll_append_only_buffer(wale_p);
 
-			wale_p->scroller_waiting_for_append_only_writers_to_exit = 0;
+			wale_p->scrolling_in_progress = 0;
 
 			append_slot = wale_p->append_offset;
 			wale_p->append_offset = min(wale_p->append_offset + total_bytes_to_write, wale_p->buffer_block_count * wale_p->block_io_functions.block_size);
@@ -328,14 +332,14 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 		{
 			pthread_mutex_lock(get_wale_lock(wale_p));
 
-			wale_p->scroller_waiting_for_append_only_writers_to_exit = 1;
+			wale_p->scrolling_in_progress = 1;
 
 			while(wale_p->append_only_writers_count > 1)
 				pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
 
 			scroll_append_only_buffer(wale_p);
 
-			wale_p->scroller_waiting_for_append_only_writers_to_exit = 0;
+			wale_p->scrolling_in_progress = 0;
 
 			append_slot = wale_p->append_offset;
 			wale_p->append_offset = min(wale_p->append_offset + total_bytes_to_write, wale_p->buffer_block_count * wale_p->block_io_functions.block_size);
@@ -351,8 +355,8 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 
 	wale_p->append_only_writers_count--;
 
-	if( (wale_p->append_only_writers_count == 1 && wale_p->scroller_waiting_for_append_only_writers_to_exit) ||
-		(wale_p->append_only_writers_count == 0 && wale_p->flush_waiting_for_append_only_writers_to_exit))
+	if((wale_p->append_only_writers_count == 0 && wale_p->waiting_for_append_only_writers_to_exit) ||
+		(wale_p->append_only_writers_count == 1 && wale_p->scrolling_in_progress))
 		pthread_cond_broadcast(&(wale_p->waiting_for_append_only_writers_to_exit));
 
 	if(wale_p->has_internal_lock)
