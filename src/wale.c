@@ -496,6 +496,13 @@ int truncate_log_records(wale* wale_p)
 	// set to indicate that a flush is now in progress
 	wale_p->flush_in_progress = 1;
 
+	// wait for append only writers to exit, so that we can safely reset the append only log and the in_memeory_master_record
+	// this ensures that the next log sequence number is not advanced
+	wale_p->waiting_for_append_only_writers_to_exit_flag = 1;
+	while(wale_p->append_only_writers_count > 0)
+		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
+
+	// the next_log_sequence_number is not advanced
 	master_record new_master_record = {
 		.first_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER,
 		.check_point_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER,
@@ -503,11 +510,6 @@ int truncate_log_records(wale* wale_p)
 		.next_log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number,
 	};
 	uint64_t new_append_offset = 0;
-
-	// wait for append only writers to exit, so that we can safely reset the append only log and the in_memeory_master_record
-	wale_p->waiting_for_append_only_writers_to_exit_flag = 1;
-	while(wale_p->append_only_writers_count > 0)
-		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
 
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 
@@ -518,10 +520,13 @@ int truncate_log_records(wale* wale_p)
 	if(!truncated_logs)
 		goto FAILED_EXIT;
 
-	// now we need to install the on_disk_master_record, so we need all readers to exit
+	// now we need to install the on_disk_master_record, so we need all readers to exit, aswell
 	wale_p->waiting_for_random_readers_to_exit_flag = 1;
 	while(wale_p->random_readers_count > 0)
 		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
+
+	// The below 3 lines can be done with global lock releases, but there is not point in releasing it
+	// since neither readers, nor writers not even the any flush can be using wale at this state
 
 	// update all of the current state
 	wale_p->on_disk_master_record = new_master_record;
