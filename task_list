@@ -1,5 +1,3 @@
  * (always task) dry runs for all functions for locks
 
- * concurrent test cases, as if appending and flushing variable length logs, but some how forming a sequence
-
  * (*far future) add checksum to log record, including the prefix and suffix sizes
