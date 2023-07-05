@@ -407,7 +407,7 @@ uint64_t flush_all_log_records(wale* wale_p)
 
 	// perform a scroll
 	wale_p->scrolling_in_progress = 1;
-	int scroll_success = scroll_append_only_buffer(wale_p);
+	int scroll_success = (wale_p->major_scroll_error == 0) && scroll_append_only_buffer(wale_p);
 	wale_p->scrolling_in_progress = 0;
 
 	// we do not need the writers to wait after all the records up til now have been written
@@ -415,7 +415,10 @@ uint64_t flush_all_log_records(wale* wale_p)
 		pthread_cond_broadcast(&(wale_p->append_only_writers_waiting));
 
 	if(!scroll_success)
+	{
+		wale_p->major_scroll_error = 1;
 		goto FAILED_EXIT;
+	}
 
 	// copy the valid values for flushing the on disk master record, before we release the lock
 	master_record new_on_disk_master_record = wale_p->in_memory_master_record;
@@ -501,6 +504,10 @@ int truncate_log_records(wale* wale_p)
 	wale_p->waiting_for_append_only_writers_to_exit_flag = 1;
 	while(wale_p->append_only_writers_count > 0)
 		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
+
+	// if any of the prior writes caused major scroll error, then we fail exit
+	if(wale_p->major_scroll_error)
+		goto FAILED_EXIT;
 
 	// the next_log_sequence_number is not advanced
 	master_record new_master_record = {
