@@ -474,4 +474,84 @@ uint64_t flush_all_log_records(wale* wale_p)
 	return last_flushed_log_sequence_number;
 }
 
-int truncate_log_records(wale* wale_p);
+int truncate_log_records(wale* wale_p)
+{
+	int trancated_logs = 0;
+
+	if(wale_p->has_internal_lock)
+		pthread_mutex_lock(get_wale_lock(wale_p));
+
+	// we can not flush if there has been a major scroll error
+	if(wale_p->major_scroll_error)
+		goto EXIT;
+
+	// wait for any other ongoing flush to exit
+	while(wale_p->flush_in_progress)
+	{
+		wale_p->flush_completion_waiting_count++;
+		pthread_cond_wait(&(wale_p->flush_completion_waiting), get_wale_lock(wale_p));
+		wale_p->flush_completion_waiting_count--;
+	}
+
+	// set to indicate that a flush is now in progress
+	wale_p->flush_in_progress = 1;
+
+	master_record new_master_record = {
+		.first_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+		.check_point_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+		.last_flushed_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+		.next_log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number;
+	};
+	uint64_t new_append_offset = 0;
+
+	// wait for append only writers to exit, so that we can safely reset the append only log and the in_memeory_master_record
+	wale_p->waiting_for_append_only_writers_to_exit_flag = 1;
+	while(wale_p->append_only_writers_count > 0)
+		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
+
+	pthread_mutex_unlock(get_wale_lock(wale_p));
+
+	truncated_logs = write_and_flush_master_record(&new_disk_master_record, &(wale_p->block_io_functions));
+
+	pthread_mutex_lock(get_wale_lock(wale_p));
+
+	if(!truncated_logs)
+		goto FAILED_EXIT;
+
+	// now we need to install the on_disk_master_record, so we need all readers to exit
+	wale_p->waiting_for_random_readers_to_exit_flag = 1;
+	while(wale_p->random_readers_count > 0)
+		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
+
+	// update all of the current state
+	wale_p->on_disk_master_record = new_master_record;
+	wale_p->in_memory_master_record = new_master_record;
+	wale_p->append_offset = new_append_offset;
+
+	// wake up any readers that are waiting
+	wale_p->waiting_for_random_readers_to_exit_flag = 0;
+	if(wale_p->random_readers_waiting_count > 0)
+		pthread_cond_broadcast(&(wale_p->random_readers_waiting));
+
+	// 
+	FAILED_EXIT:;
+
+	// wake up any writers that are waiting
+	wale_p->waiting_for_append_only_writers_to_exit_flag = 0;
+	if(wale_p->append_only_writers_waiting_count > 0)
+		pthread_cond_broadcast(&(wale_p->append_only_writers_waiting));
+
+	// flush is now finish
+	wale_p->flush_in_progress = 0;
+
+	// wake up any thread waiting for flush to complete
+	if(wale_p->flush_completion_waiting_count)
+		pthread_cond_broadcast(&(wale_p->flush_completion_waiting));
+
+	EXIT:;
+
+	if(wale_p->has_internal_lock)
+		pthread_mutex_unlock(get_wale_lock(wale_p));
+
+	return truncated_logs;
+}
