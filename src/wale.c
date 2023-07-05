@@ -476,7 +476,7 @@ uint64_t flush_all_log_records(wale* wale_p)
 
 int truncate_log_records(wale* wale_p)
 {
-	int trancated_logs = 0;
+	int truncated_logs = 0;
 
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
@@ -497,10 +497,10 @@ int truncate_log_records(wale* wale_p)
 	wale_p->flush_in_progress = 1;
 
 	master_record new_master_record = {
-		.first_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
-		.check_point_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
-		.last_flushed_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
-		.next_log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number;
+		.first_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER,
+		.check_point_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER,
+		.last_flushed_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER,
+		.next_log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number,
 	};
 	uint64_t new_append_offset = 0;
 
@@ -511,7 +511,7 @@ int truncate_log_records(wale* wale_p)
 
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 
-	truncated_logs = write_and_flush_master_record(&new_disk_master_record, &(wale_p->block_io_functions));
+	truncated_logs = write_and_flush_master_record(&new_master_record, &(wale_p->block_io_functions));
 
 	pthread_mutex_lock(get_wale_lock(wale_p));
 
