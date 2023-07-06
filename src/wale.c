@@ -446,32 +446,19 @@ int truncate_log_records(wale* wale_p)
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
+	// take exclusive lock on the append only buffer_lock,
+	// this ensures all appenders to the append only buffer have exited
+	// their writes may be in the buffer and we are unconcerned with that
+	exclusive_lock(&(wale_p->append_only_buffer_lock), BLOCKING);
+
 	// we can not flush if there has been a major scroll error
 	if(wale_p->major_scroll_error)
-		goto EXIT;
-
-	// wait for any other ongoing flush to exit
-	while(wale_p->flush_in_progress)
 	{
-		wale_p->flush_completion_waiting_count++;
-		pthread_cond_wait(&(wale_p->flush_completion_waiting), get_wale_lock(wale_p));
-		wale_p->flush_completion_waiting_count--;
+		exclusive_unlock(&(wale_p->append_only_buffer_lock));
+		goto EXIT;
 	}
 
-	// set to indicate that a flush is now in progress
-	wale_p->flush_in_progress = 1;
-
-	// wait for append only writers to exit, so that we can safely reset the append only log and the in_memeory_master_record
-	// this ensures that the next log sequence number is not advanced
-	wale_p->waiting_for_append_only_writers_to_exit_flag = 1;
-	while(wale_p->append_only_writers_count > 0)
-		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
-
-	// if any of the prior writes caused major scroll error, then we fail exit
-	if(wale_p->major_scroll_error)
-		goto FAILED_EXIT;
-
-	// the next_log_sequence_number is not advanced
+	// next_log_sequence_number is not advanced
 	master_record new_master_record = {
 		.first_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER,
 		.check_point_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER,
@@ -480,50 +467,30 @@ int truncate_log_records(wale* wale_p)
 	};
 	uint64_t new_append_offset = 0;
 
+	// now we also need exclusive lock on the on_disk_master_record, so that we can update it, along with the actual ondisk master record
+	exclusive_lock(&(wale_p->flushed_log_records_lock), BLOCKING);
+
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 
 	truncated_logs = write_and_flush_master_record(&new_master_record, &(wale_p->block_io_functions));
 
+	if(truncated_logs)
+	{
+		// update all of the current state
+		wale_p->on_disk_master_record = new_master_record;
+
+		// think why it is fine to update the below 2 records here, (because we have exclusive lock on the append_only_buffer, and so noone can be advancing it)
+		wale_p->in_memory_master_record = new_master_record;
+		wale_p->append_offset = new_append_offset;
+	}
+
 	pthread_mutex_lock(get_wale_lock(wale_p));
 
-	if(!truncated_logs)
-		goto FAILED_EXIT;
-
-	// now we need to install the on_disk_master_record, so we need all readers to exit, aswell
-	wale_p->waiting_for_random_readers_to_exit_flag = 1;
-	while(wale_p->random_readers_count > 0)
-		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
-
-	// The below 3 lines can be done with global lock releases, but there is not point in releasing it
-	// since neither readers, nor writers not even the any flush can be using wale at this state
-
-	// update all of the current state
-	wale_p->on_disk_master_record = new_master_record;
-	wale_p->in_memory_master_record = new_master_record;
-	wale_p->append_offset = new_append_offset;
-
-	// wake up any readers that are waiting
-	wale_p->waiting_for_random_readers_to_exit_flag = 0;
-	if(wale_p->random_readers_waiting_count > 0)
-		pthread_cond_broadcast(&(wale_p->random_readers_waiting));
-
-	// 
-	FAILED_EXIT:;
-
-	// wake up any writers that are waiting
-	wale_p->waiting_for_append_only_writers_to_exit_flag = 0;
-	if(wale_p->append_only_writers_waiting_count > 0)
-		pthread_cond_broadcast(&(wale_p->append_only_writers_waiting));
-
-	// flush is now finish
-	wale_p->flush_in_progress = 0;
-
-	// wake up any thread waiting for flush to complete
-	if(wale_p->flush_completion_waiting_count)
-		pthread_cond_broadcast(&(wale_p->flush_completion_waiting));
+	// release both the exclusive locks
+	exclusive_unlock(&(wale_p->flushed_log_records_lock));
+	exclusive_unlock(&(wale_p->append_only_buffer_lock));
 
 	EXIT:;
-
 	if(wale_p->has_internal_lock)
 		pthread_mutex_unlock(get_wale_lock(wale_p));
 
