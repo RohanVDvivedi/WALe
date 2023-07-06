@@ -375,46 +375,42 @@ uint64_t flush_all_log_records(wale* wale_p)
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
+	// get exclusive_lock on the append_only_buffer
+	exclusive_lock(&(wale_p->append_only_buffer_lock), BLOCKING);
+
 	// we can not flush if there has been a major scroll error
 	if(wale_p->major_scroll_error)
-		goto EXIT;
-
-	// wait for any other ongoing flush to exit
-	while(wale_p->flush_in_progress)
 	{
-		wale_p->flush_completion_waiting_count++;
-		pthread_cond_wait(&(wale_p->flush_completion_waiting), get_wale_lock(wale_p));
-		wale_p->flush_completion_waiting_count--;
+		// release exclusive lock and exit
+		exclusive_unlock(&(wale_p->append_only_buffer_lock));
+		goto EXIT;
 	}
 
-	// set to indicate that a flush is now in progress
-	wale_p->flush_in_progress = 1;
-
-	// wait for append only writers to exit, so that we can scroll
-	wale_p->waiting_for_append_only_writers_to_exit_flag = 1;
-	while(wale_p->append_only_writers_count > 0)
-		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
-	wale_p->waiting_for_append_only_writers_to_exit_flag = 0;
-
 	// perform a scroll
-	wale_p->scrolling_in_progress = 1;
-	int scroll_success = (wale_p->major_scroll_error == 0) && scroll_append_only_buffer(wale_p);
-	wale_p->scrolling_in_progress = 0;
+	int scroll_success = scroll_append_only_buffer(wale_p);
 
-	// we do not need the writers to wait after all the records up til now have been written
-	if(wale_p->append_only_writers_waiting_count > 0)
-		pthread_cond_broadcast(&(wale_p->append_only_writers_waiting));
-
+	// if scroll was a failure, set the 
 	if(!scroll_success)
 	{
 		wale_p->major_scroll_error = 1;
-		goto FAILED_EXIT;
+		goto EXIT;
 	}
 
-	// copy the valid values for flushing the on disk master record, before we release the lock
+	// wake up any thread that was waiting for scroll to finish (even if there is scroll_error, we need to wake them up to let them know about it)
+	pthread_cond_broadcast(&(wale_p->wait_for_scroll));
+
+	// copy the valid values for flushing the on disk master record, before we release the global mutex lock
 	master_record new_on_disk_master_record = wale_p->in_memory_master_record;
 
-	// we can allow the new append only writers from now on
+	// we now need to write the new_on_disk_master_record to the on_disk_master_record and the actual on-disk master record, with respective flushes
+	exclusive_lock(&(wale_p->flushed_log_records_lock), BLOCKING);
+
+	// release exclusive lock after the scroll is complete
+	exclusive_unlock(&(wale_p->append_only_buffer_lock));
+
+	// here the above locking order is essential, it ensures that the updates of flush are always installed in lock step order in the event of 2 ongoing flushes
+
+	// As you can predict/observe/analyze, now from here on, other append only writers, scrollers and flushes can proceed with their task concurrently with this one
 
 	// release the lock
 	pthread_mutex_unlock(get_wale_lock(wale_p));
@@ -422,46 +418,21 @@ uint64_t flush_all_log_records(wale* wale_p)
 	int flush_success = wale_p->block_io_functions.flush_all_writes(wale_p->block_io_functions.block_io_ops_handle) 
 	&& write_and_flush_master_record(&new_on_disk_master_record, &(wale_p->block_io_functions));
 
-	if(!flush_success)
+	if(flush_success)
 	{
-		pthread_mutex_lock(get_wale_lock(wale_p));
-		goto FAILED_EXIT;
+		// update the on_disk_master_record to the new value
+		wale_p->on_disk_master_record = new_on_disk_master_record;
+
+		// also set the return value
+		last_flushed_log_sequence_number = new_on_disk_master_record.last_flushed_log_sequence_number;
 	}
 
 	pthread_mutex_lock(get_wale_lock(wale_p));
 
-	// now we need to install the on_disk_master_record, so we need all readers to exit
-	wale_p->waiting_for_random_readers_to_exit_flag = 1;
-	while(wale_p->random_readers_count > 0)
-		pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
-
-	// once all readers have exited, we can install the new_on_disk_master_record to wale_p->on_disk_master_record ..
-	// without the global lock held
-	pthread_mutex_unlock(get_wale_lock(wale_p));
-
-	// 
-	wale_p->on_disk_master_record = new_on_disk_master_record;
-	last_flushed_log_sequence_number = wale_p->on_disk_master_record.last_flushed_log_sequence_number;
-
-	pthread_mutex_lock(get_wale_lock(wale_p));
-
-	// wake up any readers that are waiting
-	wale_p->waiting_for_random_readers_to_exit_flag = 0;
-	if(wale_p->random_readers_waiting_count > 0)
-		pthread_cond_broadcast(&(wale_p->random_readers_waiting));
-
-	// 
-	FAILED_EXIT:;
-
-	// flush is now finish
-	wale_p->flush_in_progress = 0;
-
-	// wake up any thread waiting for flush to complete
-	if(wale_p->flush_completion_waiting_count)
-		pthread_cond_broadcast(&(wale_p->flush_completion_waiting));
+	// release exclusive lock on the flushed_log_records
+	exclusive_unlock(&(wale_p->flushed_log_records_lock));
 
 	EXIT:;
-
 	if(wale_p->has_internal_lock)
 		pthread_mutex_unlock(get_wale_lock(wale_p));
 
