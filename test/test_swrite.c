@@ -19,8 +19,6 @@
 
 block_io_ops get_block_io_functions(const block_file* bf);
 
-#define APPENDS_TO_PERFORM 512
-
 wale walE;
 
 void append_test_log()
