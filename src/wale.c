@@ -250,14 +250,14 @@ static uint64_t append_log_record_data(wale* wale_p, uint64_t* append_slot, cons
 			// scrolling needs global lock
 			pthread_mutex_lock(get_wale_lock(wale_p));
 
-			wale_p->scrolling_in_progress = 1;
+			// upgrade your shared lock on the append_only_buffer to exclusive lock while we scroll
+			upgrade_lock(&(wale_p->append_only_buffer_lock), BLOCKING);
 
-			while(wale_p->append_only_writers_count > 1)
-				pthread_cond_wait(&(wale_p->waiting_for_append_only_writers_to_exit), get_wale_lock(wale_p));
-
+			// scroll and preserve the scroll error for the caller to see
 			(*error_in_scroll) = !scroll_append_only_buffer(wale_p);
 
-			wale_p->scrolling_in_progress = 0;
+			// downgrade back to shared_lock on the append_only_buffer after the scroll
+			downgrade_lock(&(wale_p->append_only_buffer_lock));
 
 			if(!(*error_in_scroll))
 			{
@@ -265,9 +265,15 @@ static uint64_t append_log_record_data(wale* wale_p, uint64_t* append_slot, cons
 				(*append_slot) = wale_p->append_offset;
 				wale_p->append_offset = min(wale_p->append_offset + (*total_bytes_to_write_for_this_log_record), wale_p->buffer_block_count * wale_p->block_io_functions.block_size);
 
-				// if there is space in the append_only_buffer then we wake other writers up
+				// if there is space in the append_only_buffer then we wake other writers to append_only_buffer, who are waiting for append_only_buffer to scroll to the next_log_sequence_number
 				if(wale_p->append_offset < wale_p->buffer_block_count * wale_p->block_io_functions.block_size)
-					pthread_cond_broadcast(&(wale_p->append_only_writers_waiting));
+					pthread_cond_broadcast(&(wale_p->wait_for_scroll));
+			}
+			else
+			{
+				// in case of scroll error, wake up any threads waiting for a successfull scroll
+				wale_p->major_scroll_error = 1;
+				pthread_cond_broadcast(&(wale_p->wait_for_scroll));
 			}
 
 			pthread_mutex_unlock(get_wale_lock(wale_p));
