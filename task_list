@@ -1,7 +1,5 @@
  * (always task) dry runs for all functions for locks
 
- * use rwlock to simplify code and make it easy to understand and add functionality to
-
  * get page size of OS by using a system call to align the append only buffer's allocation
 
  * (*far future) add checksum to log record, including the prefix and suffix sizes
