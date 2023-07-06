@@ -5,6 +5,8 @@
 #include<inttypes.h>
 #include<pthread.h>
 
+#include<rwlock.h>
+
 #include<block_io_ops.h>
 
 // 0 log sequence number will never show up in the wal file
@@ -42,17 +44,30 @@ struct wale
 	};
 
 	// --------------------------------------------------------
-	// functions to perform contiguous block io
-	block_io_ops block_io_functions;
+
+	//  below 4 attributes are protected by the global mutex lock (above, external or internal)
+
+	// any updates to the master record are made here in memory, this master record must be flushed for changes to be persistent
+	// any append_log_record will diverge the in_memory_master_record, from the on_disk_master_record
+	master_record in_memory_master_record;
+
+	// append_offset is the number of bytes that is filled in the buffer
+	// the next byte to be appended goes at append_offset
+	uint64_t append_offset;
+
+	// this bit will be set, when an unrecoverable scroll error occurs, this error needs a restart of your system
+	// which will also mean a loss of certain wal log records 
+	int major_scroll_error : 1;
+
+	// wait on this condition variable for the next scroll after which append_only_buffer contains the first byte for in_memory_master_record.next_log_sequence_number
+	pthread_cond_t wait_for_scroll;
 
 	// --------------------------------------------------------
 	// cached structured copy of on disk persistent state of the wale's master record
 	master_record on_disk_master_record;
 
-	// --------------------------------------------------------
-	// any updates are made here in memory, this master record must be flushed for changes to be persistent
-	// any append_log_record will diverge the in_memory_master_record, from the on_disk_master_record
-	master_record in_memory_master_record;
+	// below reader writer lock protects the on_disk_master_record and the flushed logs on the disk (which are considered read-only for most part)
+	rwlock flushed_log_records_lock;
 
 	// --------------------------------------------------------
 
@@ -61,57 +76,19 @@ struct wale
 	// total memory at buffer = buffer_block_count * block_io_functions.block_size
 	void* buffer;
 
-	// append_offset is the number of bytes filled in the buffer
-	// the next byte to be appended goes at append_offset
-	uint64_t append_offset;
-
-	// number of blocks pointed to by buffer
+	// number of blocks pointed to by buffer, this is fixed for most part
 	uint64_t buffer_block_count;
 
 	// buffer_start_block_id is the first block pointed to by the buffer
 	// the first byte in the buffer is at buffer_start_block_id * block_io_functions.block_size
 	uint64_t buffer_start_block_id;
 
-	// this bit will be set, when an unrecoverable scroll error occurs, this error needs a restart of your system
-	// which will also mean a loss of certain wal log records 
-	int major_scroll_error : 1;
+	// a shared/exclusive lock for protecting the contents of the append only buffer
+	rwlock append_only_buffer_lock;
 
 	// --------------------------------------------------------
-
-	// number of readers that are performing any io that needs a fixed value of on_disk_master_record
-	uint64_t random_readers_count;
-
-	// number of writers that need the append only buffer to not be scrolled
-	uint64_t append_only_writers_count;
-
-	// random_readers and append_only_writers do not block each other
-
-	// a flag to be set to notify a flush is in progress
-	// flush may not start until all the append_only_writers who have entered hve left the section
-	// i.e. will not start until append_only_writers_count > 0, the random_readers_count may be any thing (>=0)
-	int flush_in_progress : 1;
-
-	// if the scrolling_in_progress is set then, there is some continuing writer that is scrolling the append only buffer
-	// so any append only writer must wait
-	int scrolling_in_progress : 1;
-
-	int waiting_for_random_readers_to_exit_flag : 1;
-	pthread_cond_t waiting_for_random_readers_to_exit;
-
-	int waiting_for_append_only_writers_to_exit_flag : 1;
-	pthread_cond_t waiting_for_append_only_writers_to_exit;
-
-	// counter and condition variable to be used by random readers
-	uint64_t random_readers_waiting_count;
-	pthread_cond_t random_readers_waiting;
-
-	// counter and condition variable to be used by append only writers
-	uint64_t append_only_writers_waiting_count;
-	pthread_cond_t append_only_writers_waiting;
-
-	// threads wait here for completion of flush
-	uint64_t flush_completion_waiting_count;
-	pthread_cond_t flush_completion_waiting;
+	// functions to perform contiguous block io
+	block_io_ops block_io_functions;
 };
 
 /*

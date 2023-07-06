@@ -1,5 +1,6 @@
 #include<wale.h>
 
+#include<wale_get_lock_util.h>
 #include<util_master_record_io.h>
 
 #include<stdlib.h>
@@ -66,27 +67,9 @@ int initialize_wale(wale* wale_p, uint64_t next_log_sequence_number, pthread_mut
 		}
 	}
 
-
-	wale_p->random_readers_count = 0;
-	wale_p->append_only_writers_count = 0;
-	wale_p->flush_in_progress = 0;
-
-	wale_p->scrolling_in_progress = 0;
-
-	wale_p->waiting_for_random_readers_to_exit_flag = 0;
-	pthread_cond_init(&(wale_p->waiting_for_random_readers_to_exit), NULL);
-
-	wale_p->waiting_for_append_only_writers_to_exit_flag = 0;
-	pthread_cond_init(&(wale_p->waiting_for_append_only_writers_to_exit), NULL);
-
-	wale_p->random_readers_waiting_count = 0;
-	pthread_cond_init(&(wale_p->random_readers_waiting), NULL);
-
-	wale_p->append_only_writers_waiting_count = 0;
-	pthread_cond_init(&(wale_p->append_only_writers_waiting), NULL);
-
-	wale_p->flush_completion_waiting_count = 0;
-	pthread_cond_init(&(wale_p->flush_completion_waiting), NULL);
+	pthread_cond_init(&(wale_p->wait_for_scroll), NULL);
+	initialize_rwlock(&(wale_p->flushed_log_records_lock), get_wale_lock(wale_p));
+	initialize_rwlock(&(wale_p->append_only_buffer_lock), get_wale_lock(wale_p));
 
 	return 1;
 }
@@ -98,7 +81,7 @@ void deinitialize_wale(wale* wale_p)
 	if(wale_p->has_internal_lock)
 		pthread_mutex_destroy(&(wale_p->internal_lock));
 
-	pthread_cond_destroy(&(wale_p->random_readers_waiting));
-	pthread_cond_destroy(&(wale_p->append_only_writers_waiting));
-	pthread_cond_destroy(&(wale_p->flush_completion_waiting));
+	pthread_cond_destroy(&(wale_p->wait_for_scroll));
+	deinitialize_rwlock(&(wale_p->flushed_log_records_lock));
+	deinitialize_rwlock(&(wale_p->append_only_buffer_lock));
 }
