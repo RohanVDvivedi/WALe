@@ -6,92 +6,77 @@
 #include<util_scroll_append_only_buffer.h>
 #include<util_master_record_io.h>
 
+#include<rwlock.h>
+
 #include<cutlery_stds.h>
 #include<cutlery_math.h>
 
 #include<stdlib.h>
 
-static void random_readers_prefix(wale* wale_p)
+static void prefix_to_acquire_flushed_log_records_reader_lock(wale* wale_p)
 {
-	// take lock if the lock is internal
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
-	// wait if some writable task wants us to wait
-	while(wale_p->waiting_for_random_readers_to_exit_flag)
-	{
-		wale_p->random_readers_waiting_count++;
-		pthread_cond_wait(&(wale_p->random_readers_waiting), get_wale_lock(wale_p));
-		wale_p->random_readers_waiting_count--;
-	}
+	read_lock(&(wale_p->flushed_log_records_lock), READ_PREFERRING, BLOCKING);
 
-	// increment the random_readers_count notifying that there is someone reading now
-	wale_p->random_readers_count++;
-
-	// we perform reads from the wale file and the on_disk_master_record without holding the global lock
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 }
 
-static void random_readers_suffix(wale* wale_p)
+static void suffix_to_release_flushed_log_records_reader_lock(wale* wale_p)
 {
 	pthread_mutex_lock(get_wale_lock(wale_p));
 
-	// decrement the random_readers_count
-	wale_p->random_readers_count--;
+	read_unlock(&(wale_p->flushed_log_records_lock));
 
-	// if the random_readers_count has reached 0, due to us decrementing it, and there is someone waiting for all the readers to exit, then notify them, i.e. wake them up
-	if(wale_p->random_readers_count == 0 && wale_p->waiting_for_random_readers_to_exit_flag)
-		pthread_cond_broadcast(&(wale_p->waiting_for_random_readers_to_exit));
-
-	// release lock if the lock is internal
 	if(wale_p->has_internal_lock)
 		pthread_mutex_unlock(get_wale_lock(wale_p));
 }
 
 /*
-	Every reader function must read only the fluh contents of the WALe file,
-	i.e. after calling random_readers_prefix() they can access only the on_disk_master_record and the file contents for the log_sequence_numbers between (and inclusive of) first_log_sequence_number and last_flushed_log_sequence_number
-	and then call random_readers_suffix() before quiting
+	Every reader function must read only the flushed contents of the WALe file,
+	i.e. after calling prefix_to_acquire_flushed_log_records_reader_lock() they can access only the on_disk_master_record and the file contents for the log_sequence_numbers between (and inclusive of) first_log_sequence_number and last_flushed_log_sequence_number
+	and then call suffix_to_release_flushed_log_records_reader_lock() before quiting
 
 	on_disk_master_record is just the cached structured copy of the master record on disk
 */
 
 uint64_t get_first_log_sequence_number(wale* wale_p)
 {
-	random_readers_prefix(wale_p);
+	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
 	uint64_t first_log_sequence_number = wale_p->on_disk_master_record.first_log_sequence_number;
 
-	random_readers_suffix(wale_p);
+	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
 	return first_log_sequence_number;
 }
 
 uint64_t get_last_flushed_log_sequence_number(wale* wale_p)
 {
-	random_readers_prefix(wale_p);
+	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
 	uint64_t last_flushed_log_sequence_number = wale_p->on_disk_master_record.last_flushed_log_sequence_number;
 
-	random_readers_suffix(wale_p);
+	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
 	return last_flushed_log_sequence_number;
 }
 
 uint64_t get_check_point_log_sequence_number(wale* wale_p)
 {
-	random_readers_prefix(wale_p);
+	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
 	uint64_t check_point_log_sequence_number = wale_p->on_disk_master_record.check_point_log_sequence_number;
 
-	random_readers_suffix(wale_p);
+	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
 	return check_point_log_sequence_number;
 }
 
 uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number)
 {
-	random_readers_prefix(wale_p);
+	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
 	// set it to INVALID_LOG_SEQUENCE_NUMBER, which is default result
 	uint64_t next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
@@ -102,27 +87,30 @@ uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 		log_sequence_number < wale_p->on_disk_master_record.last_flushed_log_sequence_number
 		)
 	{
+		// calculate the offset in file of the log_record at log_sequence_number
 		uint64_t file_offset_of_log_record = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 
+		// read its size
 		char size_of_log_record_bytes[4];
 		if(!random_read_at(size_of_log_record_bytes, 4, file_offset_of_log_record, &(wale_p->block_io_functions)))
 			goto FAILED;
 
 		uint32_t size_of_log_record = deserialize_le_uint32(size_of_log_record_bytes);
 
-		next_log_sequence_number = log_sequence_number + size_of_log_record + 8; // 8 for prefix and suffix size
+		// the next_log_sequence_number is right after this log_record
+		next_log_sequence_number = log_sequence_number + ((uint64_t)size_of_log_record) + UINT64_C(8); // 8 for prefix and suffix size
 
 		FAILED:;
 	}
 
-	random_readers_suffix(wale_p);
+	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
 	return next_log_sequence_number;
 }
 
 uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number)
 {
-	random_readers_prefix(wale_p);
+	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
 	// set it to INVALID_LOG_SEQUENCE_NUMBER, which is default result
 	uint64_t prev_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
@@ -133,27 +121,30 @@ uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 		log_sequence_number <= wale_p->on_disk_master_record.last_flushed_log_sequence_number
 		)
 	{
+		// calculate the offset in file of the log_record at log_sequence_number
 		uint64_t file_offset_of_log_record = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 
+		// read size of its previous log_record
 		char size_of_prev_log_record_bytes[4];
 		if(!random_read_at(size_of_prev_log_record_bytes, 4, file_offset_of_log_record - 4, &(wale_p->block_io_functions)))
 			goto FAILED;
 
 		uint32_t size_of_prev_log_record = deserialize_le_uint32(size_of_prev_log_record_bytes);
 
-		prev_log_sequence_number = log_sequence_number - size_of_prev_log_record - 8; // 8 for prefix and suffix size of the previous log record
+		// the prev_log_sequence_number is right before this one
+		prev_log_sequence_number = log_sequence_number - (((uint64_t)size_of_prev_log_record) + UINT64_C(8)); // 8 for prefix and suffix size of the previous log record
 
 		FAILED:;
 	}
 
-	random_readers_suffix(wale_p);
+	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
 	return prev_log_sequence_number;
 }
 
 void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* log_record_size)
 {
-	random_readers_prefix(wale_p);
+	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
 	// set it to NULL, which is default result
 	void* log_record = NULL;
@@ -164,8 +155,10 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 		log_sequence_number <= wale_p->on_disk_master_record.last_flushed_log_sequence_number
 		)
 	{
+		// calculate the offset in file of the log_record at log_sequence_number
 		uint64_t file_offset_of_log_record = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 
+		// read size of the log_record at given log_sequence_number
 		char size_of_log_record_bytes[4];
 		if(!random_read_at(size_of_log_record_bytes, 4, file_offset_of_log_record, &(wale_p->block_io_functions)))
 			goto FAILED;
@@ -176,6 +169,7 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 		if(log_record == NULL)
 			goto FAILED;
 
+		// read data for log_record from the file, data size amounting to log_record_size
 		if(!random_read_at(log_record, (*log_record_size), file_offset_of_log_record + 4, &(wale_p->block_io_functions)))
 		{
 			free(log_record);
@@ -186,7 +180,7 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 		FAILED:;
 	}
 
-	random_readers_suffix(wale_p);
+	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
 	return log_record;
 }
