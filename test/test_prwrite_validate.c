@@ -13,6 +13,10 @@
 
 #define APPEND_ONLY_BUFFER_COUNT 1
 
+#include<prwrite_specs.h>
+
+#define LOG_FORMAT "thread_id=<%d> log_number=<%d>"
+
 block_io_ops get_block_io_functions(const block_file* bf);
 
 wale walE;
@@ -51,7 +55,36 @@ int main()
 		return -1;
 	}
 
-	print_all_flushed_logs();
+	int next_log_to_see[THREAD_COUNT] = {};
+
+	uint64_t log_sequence_number = get_first_log_sequence_number(&walE);
+	while(log_sequence_number != INVALID_LOG_SEQUENCE_NUMBER)
+	{
+		uint32_t log_record_size;
+		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size);
+		int thread_id = -1;
+		int log_number = -1;
+		sscanf(log_record, LOG_FORMAT, &thread_id, &log_number)
+		if(thread_id < THREAD_COUNT && log_number < LOGS_PER_THREAD && next_log_to_see[thread_id] == log_number)
+			next_log_to_see[thread_id]++;
+		else
+		{
+			printf("error at log_sequence_number = %"PRIu64" seen -> %d %d\n", thread_id, log_number);
+			exit(-1);
+		}
+		log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number);
+	}
+
+	for(int i = 0; i < THREAD_COUNT; i++)
+	{
+		if(next_log_to_see[i] != LOGS_PER_THREAD)
+		{
+			printf("error we saw only %d logs for thread_id %d\n", next_log_to_see[i], i);
+			exit(-1);
+		}
+	}
+
+	printf("no error found - prwrite test cases were successfull\n");
 
 	deinitialize_wale(&walE);
 
