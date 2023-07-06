@@ -3,7 +3,7 @@
 
 #include<stdint.h>
 
-// block_io_ops is a structure accepted by the bufferpool, it is interface how to read, write contiguous blocks to underlying storage
+// block_io_ops is a structure accepted by the wale, it is interface that defines how to read, write contiguous blocks to underlying storage
 
 typedef struct block_io_ops block_io_ops;
 struct block_io_ops
