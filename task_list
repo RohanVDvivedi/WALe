@@ -1,5 +1,6 @@
- * (always task) dry runs for all functions for locks
-
  * get page size of OS by using a system call to align the append only buffer's allocation
 
+ * logic to return error, on record corruption, in using get_next_of, get_prev_of and get_log_record_at function, in case of overflows or underflows, or attempt to read beyond offset in file
+
  * (*far future) add checksum to log record, including the prefix and suffix sizes
+ * logic to return error, on record corruption, in using get_next_of, get_prev_of and get_log_record_at function, in case of crc faulire
