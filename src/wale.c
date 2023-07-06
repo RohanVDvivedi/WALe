@@ -289,36 +289,36 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
-	if(wale_p->major_scroll_error)
-		goto EXIT;
+	// share lock the append_only_buffer, snce we are reading the buffer_start_block_id
+	shared_lock(&(wale_p->append_only_buffer_lock), WRITE_PREFERRING, BLOCKING);
 
-	// we wait while some writer thread wants us to wait OR if the offset for the next_log_sequence_number is not within the append only buffer
-	while(wale_p->waiting_for_append_only_writers_to_exit_flag || wale_p->scrolling_in_progress ||
-		!is_file_offset_within_append_only_buffer(wale_p, get_file_offset_for_next_log_sequence_number_to_append(wale_p)))
+	// we wait, while the offset for the next_log_sequence_number is not within the append only buffer
+	while(!is_file_offset_within_append_only_buffer(wale_p, get_file_offset_for_next_log_sequence_number_to_append(wale_p))
+		&& !wale_p->major_scroll_error)
 	{
-		wale_p->append_only_writers_waiting_count++;
-		pthread_cond_wait(&(wale_p->append_only_writers_waiting), get_wale_lock(wale_p));
-		wale_p->append_only_writers_waiting_count--;
+		shared_unlock(&(wale_p->append_only_buffer_lock));
+		pthread_cond_wait(&(wale_p->wait_for_scroll), get_wale_lock(wale_p));
+		shared_lock(&(wale_p->append_only_buffer_lock), WRITE_PREFERRING, BLOCKING);
 	}
+
+	if(wale_p->major_scroll_error)
+		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
 
 	// take slot if the next log sequence number is in the append only buffer
 	log_sequence_number = get_log_sequence_number_for_next_log_record_and_advance_master_record(wale_p, log_record_size, is_check_point);
 
 	// exit suggesting failure to allocate a log_sequence_number
 	if(log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
-		goto EXIT;
+		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
 
 	// compute the total bytes we will write
-	uint64_t total_bytes_to_write = ((uint64_t)log_record_size) + 8;
+	uint64_t total_bytes_to_write = ((uint64_t)log_record_size) + UINT64_C(8);
 
 	// now take the slot in the append only buffer
 	uint64_t append_slot = wale_p->append_offset;
 
 	// advance the append_offset of the append only buffer
 	wale_p->append_offset = min(wale_p->append_offset + total_bytes_to_write, wale_p->buffer_block_count * wale_p->block_io_functions.block_size);
-
-	// now we are truely a writer, since we have a slot and a log_sequence_number
-	wale_p->append_only_writers_count++;
 
 	// we have the slot in the append only buffer, and a log_sequence_number, now we don't need the global lock
 	pthread_mutex_unlock(get_wale_lock(wale_p));
@@ -349,20 +349,11 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 
 	// this condition implies a fail to scroll the append only buffer
 	if(scroll_error)
-	{
 		log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
-		wale_p->major_scroll_error = 1;
-	}
 
-	// decrement the append only writers count, we are no longer appending
-	wale_p->append_only_writers_count--;
-
-	// wake up any one waiting for append only writers to exit
-	if((wale_p->append_only_writers_count == 0 && wale_p->waiting_for_append_only_writers_to_exit_flag) ||
-		(wale_p->append_only_writers_count == 1 && wale_p->scrolling_in_progress))
-		pthread_cond_broadcast(&(wale_p->waiting_for_append_only_writers_to_exit));
-
-	EXIT:;
+	RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT:;
+	// share lock the append_only_buffer
+	shared_unlock(&(wale_p->append_only_buffer_lock));
 
 	if(wale_p->has_internal_lock)
 		pthread_mutex_unlock(get_wale_lock(wale_p));
