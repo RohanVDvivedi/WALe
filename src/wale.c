@@ -2,9 +2,9 @@
 
 #include<wale_get_lock_util.h>
 #include<storage_byte_ordering.h>
-#include<random_read_util.h>
-#include<append_only_write_util.h>
-#include<master_record_io.h>
+#include<util_random_read.h>
+#include<util_scroll_append_only_buffer.h>
+#include<util_master_record_io.h>
 
 #include<cutlery_stds.h>
 #include<cutlery_math.h>

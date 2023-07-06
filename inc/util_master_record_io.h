@@ -1,5 +1,5 @@
-#ifndef MASTER_RECORD_IO_H
-#define MASTER_RECORD_IO_H
+#ifndef UTIL_MASTER_RECORD_IO_H
+#define UTIL_MASTER_RECORD_IO_H
 
 #include<wale.h>
 

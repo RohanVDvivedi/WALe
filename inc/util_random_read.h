@@ -1,5 +1,5 @@
-#ifndef RANDOM_READ_UTIL_H
-#define RANDOM_READ_UTIL_H
+#ifndef UTIL_RANDOM_READ_H
+#define UTIL_RANDOM_READ_H
 
 #include<stdint.h>
 
