@@ -64,12 +64,12 @@ int main()
 		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size);
 		int thread_id = -1;
 		int log_number = -1;
-		sscanf(log_record, LOG_FORMAT, &thread_id, &log_number)
+		sscanf(log_record, LOG_FORMAT, &thread_id, &log_number);
 		if(thread_id < THREAD_COUNT && log_number < LOGS_PER_THREAD && next_log_to_see[thread_id] == log_number)
 			next_log_to_see[thread_id]++;
 		else
 		{
-			printf("error at log_sequence_number = %"PRIu64" seen -> %d %d\n", thread_id, log_number);
+			printf("error at log_sequence_number = %"PRIu64" seen -> thread_id=%d log_number=%d\n", log_sequence_number, thread_id, log_number);
 			exit(-1);
 		}
 		log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number);
