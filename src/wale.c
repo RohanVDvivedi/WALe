@@ -476,15 +476,21 @@ int truncate_log_records(wale* wale_p)
 
 	if(truncated_logs)
 	{
-		// update all of the current state
+		// we can update the on_disk_master_record here since, we have write lock on flushed_log_records_lock
 		wale_p->on_disk_master_record = new_master_record;
 
-		// think why it is fine to update the below 2 records here, (because we have exclusive lock on the append_only_buffer, and so noone can be advancing it)
-		wale_p->in_memory_master_record = new_master_record;
-		wale_p->append_offset = new_append_offset;
+		// we can update the buffer_start_block_id here since, we have write lock on append_only_buffer_lock
+		wale_p->buffer_start_block_id = 1;
 	}
 
 	pthread_mutex_lock(get_wale_lock(wale_p));
+
+	if(truncated_logs)
+	{
+		// below attributes are protected by the global mutex, hence must be updated within the mutex
+		wale_p->in_memory_master_record = new_master_record;
+		wale_p->append_offset = new_append_offset;
+	}
 
 	// release both the exclusive locks
 	write_unlock(&(wale_p->flushed_log_records_lock));
