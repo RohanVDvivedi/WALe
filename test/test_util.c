@@ -22,6 +22,7 @@ block_io_ops get_block_io_functions(block_file* bf)
 	return (block_io_ops){
 		.block_io_ops_handle = bf,
 		.block_size = get_block_size_for_block_file(bf),
+		.block_buffer_alignment = get_block_size_for_block_file(bf),
 		.read_blocks = read_blocks,
 		.write_blocks = write_blocks,
 		.flush_all_writes = flush_all_writes,
