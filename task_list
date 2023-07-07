@@ -1,7 +1,6 @@
- * dry run all public api wale functions
  * test case for concurrent log truncation
 
  * logic to return error, on record corruption, in using get_next_of, get_prev_of and get_log_record_at function, in case of overflows or underflows, or attempt to read beyond offset in file
 
  * (*far future) add checksum to log record, including the prefix and suffix sizes
- * logic to return error, on record corruption, in using get_next_of, get_prev_of and get_log_record_at function, in case of crc faulire
+ * (*far future) logic to return error, on record corruption, in using get_next_of, get_prev_of and get_log_record_at function, in case of crc faulire
