@@ -4,8 +4,6 @@
 
 #include<stdlib.h>
 
-#define OS_PAGE_SIZE 4096
-
 int random_read_at(void* buffer, uint32_t buffer_size, uint64_t file_offset, const block_io_ops* block_io_functions)
 {
 	if(buffer_size == 0)
@@ -14,7 +12,7 @@ int random_read_at(void* buffer, uint32_t buffer_size, uint64_t file_offset, con
 	uint64_t first_block_id = UINT_ALIGN_DOWN(file_offset, block_io_functions->block_size) / block_io_functions->block_size;
 	uint64_t end_block_id = UINT_ALIGN_UP(file_offset + buffer_size, block_io_functions->block_size) / block_io_functions->block_size;
 
-	void* blocks_of_concern = aligned_alloc(OS_PAGE_SIZE, (end_block_id - first_block_id) * block_io_functions->block_size);
+	void* blocks_of_concern = aligned_alloc(block_io_functions->block_buffer_alignment, (end_block_id - first_block_id) * block_io_functions->block_size);
 	if(blocks_of_concern == NULL)
 		return 0;
 

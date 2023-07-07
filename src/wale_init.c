@@ -7,8 +7,6 @@
 
 #include<cutlery_stds.h>
 
-#define OS_PAGE_SIZE 4096
-
 int initialize_wale(wale* wale_p, uint64_t next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count)
 {
 	wale_p->has_internal_lock = (external_lock == NULL);
@@ -38,7 +36,7 @@ int initialize_wale(wale* wale_p, uint64_t next_log_sequence_number, pthread_mut
 
 	wale_p->in_memory_master_record = wale_p->on_disk_master_record;
 
-	wale_p->buffer = aligned_alloc(OS_PAGE_SIZE, (append_only_block_count * wale_p->block_io_functions.block_size));
+	wale_p->buffer = aligned_alloc(wale_p->block_io_functions.block_buffer_alignment, (append_only_block_count * wale_p->block_io_functions.block_size));
 	wale_p->buffer_block_count = append_only_block_count;
 
 	if(wale_p->buffer == NULL)
