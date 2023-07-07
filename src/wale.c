@@ -403,7 +403,7 @@ uint64_t flush_all_log_records(wale* wale_p)
 	master_record new_on_disk_master_record = wale_p->in_memory_master_record;
 
 	// we now need to write the new_on_disk_master_record to the on_disk_master_record and the actual on-disk master record, with respective flushes
-	exclusive_lock(&(wale_p->flushed_log_records_lock), BLOCKING);
+	write_lock(&(wale_p->flushed_log_records_lock), BLOCKING);
 
 	// release exclusive lock after the scroll is complete
 	exclusive_unlock(&(wale_p->append_only_buffer_lock));
@@ -429,8 +429,8 @@ uint64_t flush_all_log_records(wale* wale_p)
 
 	pthread_mutex_lock(get_wale_lock(wale_p));
 
-	// release exclusive lock on the flushed_log_records
-	exclusive_unlock(&(wale_p->flushed_log_records_lock));
+	// release write lock on the flushed_log_records
+	write_unlock(&(wale_p->flushed_log_records_lock));
 
 	EXIT:;
 	if(wale_p->has_internal_lock)
@@ -467,8 +467,8 @@ int truncate_log_records(wale* wale_p)
 	};
 	uint64_t new_append_offset = 0;
 
-	// now we also need exclusive lock on the on_disk_master_record, so that we can update it, along with the actual ondisk master record
-	exclusive_lock(&(wale_p->flushed_log_records_lock), BLOCKING);
+	// now we also need write lock on the on_disk_master_record, so that we can update it, along with the actual ondisk master record
+	write_lock(&(wale_p->flushed_log_records_lock), BLOCKING);
 
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 
@@ -487,7 +487,7 @@ int truncate_log_records(wale* wale_p)
 	pthread_mutex_lock(get_wale_lock(wale_p));
 
 	// release both the exclusive locks
-	exclusive_unlock(&(wale_p->flushed_log_records_lock));
+	write_unlock(&(wale_p->flushed_log_records_lock));
 	exclusive_unlock(&(wale_p->append_only_buffer_lock));
 
 	EXIT:;
