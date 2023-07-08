@@ -22,15 +22,17 @@
 		uint32_t prev_log_record_size;
 		uint32_t curr_log_record_size;
 		uint32_t crc32_header;			// crc32 for only the *_log_record_size
+		uint32_t crc32_log_record;		// crc32 for only the log_record
 
 		// log record
 		char log_record[curr_log_record_size];
-		uint32_t crc32_log_record;		// crc32 for only the log_record
 	};
 
 	There is a different crc32 for the header and the log_record,
 	This allows us to quicly travers th log records in forward or backward using the information only in the header.
 */
+
+#define EXTRA_LOG_RECORD_OVERHEAD UINT64_C(sizeof(uint32_t) * 4)
 
 typedef struct master_record master_record;
 struct master_record
@@ -136,12 +138,19 @@ uint64_t get_check_point_log_sequence_number(wale* wale_p);
 // the below functions may only be called for log sequence numbers between on-disk first_log_sequence_number and last_flushed_log_sequence_number
 // and only while both of which are valid (!= INVALID_LOG_SEQUENCE_NUMBER)
 
-uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number);
+uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number, int* error);
 
-uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number);
+uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number, int* error);
 
 // you must free the returned memory
-void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* log_record_size);
+void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* log_record_size, int* error);
+
+// On a failure of any of the above 3 functions, error will be set to anyone of the below
+
+#define NO_ERROR                 0
+#define READ_IO_ERROR            1
+#define HEADER_CORRUPTED         2 // CRC-32 checksum of log header check failed
+#define LOG_RECORD_CORRUPTED     3 // CRC-32 checksum of log record check failed
 
 // -------------------------------------------------------------
 // append functions
