@@ -80,13 +80,12 @@ struct log_record_header
 	uint32_t prev_log_record_size;
 	uint32_t curr_log_record_size;
 	uint32_t crc32_header;
-	uint32_t crc32_log_record;
 };
 
 // 1 is success, 0 is failure
 static int parse_and_check_crc32_for_log_record_header(log_record_header* result, uint64_t offset, const block_io_ops* block_io_functions, int* error)
 {
-	
+	// TODO
 }
 
 uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number, int* error)
