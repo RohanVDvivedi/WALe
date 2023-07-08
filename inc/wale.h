@@ -13,8 +13,23 @@
 #define INVALID_LOG_SEQUENCE_NUMBER UINT64_C(0)
 
 /*
-	Every log record is prefixed and suffixed with a uint32_t size, that allows us to mover backwards and forwards in the wale file
-	The size in the suffix and prefix is the actual size of only the log record, and does not contain the size of the prefix and suffix
+	Each log record has the following format.
+	all of the uint32_t's are in little endian format
+
+	struct
+	{
+		// header
+		uint32_t prev_log_record_size;
+		uint32_t curr_log_record_size;
+		uint32_t crc32_header;			// crc32 for only the *_log_record_size
+
+		// log record
+		char log_record[curr_log_record_size];
+		uint32_t crc32_log_record;		// crc32 for aonly the log_record
+	};
+
+	There is a different crc32 for the header and the log_record,
+	This allows us to quicly travers th log records in forward or backward using the information only in the header.
 */
 
 typedef struct master_record master_record;
