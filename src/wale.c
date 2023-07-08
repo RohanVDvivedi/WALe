@@ -281,7 +281,10 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 	// allocate memeory for log record
 	log_record = malloc((*log_record_size));
 	if(log_record == NULL)
+	{
+		(*error) = ALLOCATION_FAILED;
 		goto EXIT;
+	}
 
 	// read data for log_record from the file, data size amounting to log_record_size
 	if(!random_read_at(log_record, (*log_record_size), log_record_offset, &(wale_p->block_io_functions)))
