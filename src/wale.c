@@ -126,7 +126,7 @@ uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 	// set it to INVALID_LOG_SEQUENCE_NUMBER, which is default result
 	uint64_t next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
-	// if the wale has any records, and its first <= log_sequence_number < last, then read the size and add it to the log_sequence_number to get its next
+	// if the wale has no records, OR the log_sequence_number is not within first and last_flushed log_sequence_number then fail
 	if(wale_p->on_disk_master_record.first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER ||
 		log_sequence_number < wale_p->on_disk_master_record.first_log_sequence_number || 
 		wale_p->on_disk_master_record.last_flushed_log_sequence_number < log_sequence_number
