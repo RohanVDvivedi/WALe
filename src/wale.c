@@ -342,7 +342,7 @@ static int is_file_offset_within_append_only_buffer(wale* wale_p, uint64_t file_
 static uint64_t get_log_sequence_number_for_next_log_record_and_advance_master_record(wale* wale_p, uint32_t log_record_size, int is_check_point, uint32_t* prev_log_record_size)
 {
 	// compute the total slot size required by this new log record
-	uint64_t total_log_record_slot_size = HEADER_SIZE + ((uint64_t)log_record_size) + UINT64_C(8); // 4 bytes for prefix size and 4 bytes for suffix size
+	uint64_t total_log_record_slot_size = HEADER_SIZE + ((uint64_t)log_record_size) + UINT64_C(8); // 8 for crc32 of header and log record itself
 
 	// its log sequence number will simply be the next log sequence number
 	uint64_t log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number;
