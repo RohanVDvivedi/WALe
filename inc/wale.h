@@ -25,7 +25,7 @@
 
 		// log record
 		char log_record[curr_log_record_size];
-		uint32_t crc32_log_record;		// crc32 for aonly the log_record
+		uint32_t crc32_log_record;		// crc32 for only the log_record
 	};
 
 	There is a different crc32 for the header and the log_record,
