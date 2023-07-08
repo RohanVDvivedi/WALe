@@ -11,4 +11,8 @@
 // returns 1 on a successfull read, else returns 0
 int random_read_at(void* buffer, uint64_t buffer_size, uint64_t file_offset, const block_io_ops* block_io_functions);
 
+// returns 1 on a successfull crc32 calculation
+// crc32 is an in-out parameter
+int crc32_at(uint32_t* crc32, uint64_t data_size, uint64_t file_offset, const block_io_ops* block_io_functions);
+
 #endif
