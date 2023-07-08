@@ -5,6 +5,7 @@ This is a library implementation of a Write Ahead Log (WAL) for use in building 
 **Install dependencies :**
  * [Cutlery](https://github.com/RohanVDvivedi/Cutlery)
  * [ReaderWriterLock](https://github.com/RohanVDvivedi/ReaderWriterLock)
+ * [zlib](https://github.com/madler/zlib)      ($ sudo apt install zlib1g-dev)
 
 **Download source code :**
  * `git clone https://github.com/RohanVDvivedi/WALe.git`
@@ -28,3 +29,6 @@ This is a library implementation of a Write Ahead Log (WAL) for use in building 
 **Uninstall :**
  * `cd WALe`
  * `sudo make uninstall`
+
+## Third party acknowledgements
+ * *crc32 implementation, internally supported by [zlib](https://github.com/madler/zlib) checkout their website [here](https://zlib.net/).*
