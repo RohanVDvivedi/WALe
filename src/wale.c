@@ -230,42 +230,92 @@ uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 
 void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* log_record_size, int* error)
 {
+	// initialize error to no error
+	(*error) = NO_ERROR;
+
 	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
 	// set it to NULL, which is default result
 	void* log_record = NULL;
 
-	// if the wale has any records, and its first <= log_sequence_number <= last
-	if(wale_p->on_disk_master_record.first_log_sequence_number != INVALID_LOG_SEQUENCE_NUMBER &&
-		wale_p->on_disk_master_record.first_log_sequence_number <= log_sequence_number && 
-		log_sequence_number <= wale_p->on_disk_master_record.last_flushed_log_sequence_number
+	// if the wale has no records, OR its log_sequence_number is not between first and last_flushed log_sequence_number
+	if(wale_p->on_disk_master_record.first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER ||
+		log_sequence_number < wale_p->on_disk_master_record.first_log_sequence_number ||
+		wale_p->on_disk_master_record.last_flushed_log_sequence_number < log_sequence_number
 		)
 	{
-		// calculate the offset in file of the log_record at log_sequence_number
-		uint64_t file_offset_of_log_record = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
-
-		// read size of the log_record at given log_sequence_number
-		char size_of_log_record_bytes[4];
-		if(!random_read_at(size_of_log_record_bytes, 4, file_offset_of_log_record, &(wale_p->block_io_functions)))
-			goto FAILED;
-
-		(*log_record_size) = deserialize_le_uint32(size_of_log_record_bytes);
-
-		log_record = malloc((*log_record_size));
-		if(log_record == NULL)
-			goto FAILED;
-
-		// read data for log_record from the file, data size amounting to log_record_size
-		if(!random_read_at(log_record, (*log_record_size), file_offset_of_log_record + 4, &(wale_p->block_io_functions)))
-		{
-			free(log_record);
-			log_record = NULL;
-			goto FAILED;
-		}
-
-		FAILED:;
+		(*error) = PARAM_INVALID;
+		goto EXIT;
 	}
 
+	// calculate the offset in file of the log_record at log_sequence_number
+	uint64_t file_offset_of_log_record = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
+
+	log_record_header hdr;
+	if(!parse_and_check_crc32_for_log_record_header_at(&hdr, file_offset_of_log_record, &(wale_p->block_io_functions), error))
+		goto EXIT;
+
+	// make sure that we will not be reading past or at the offset of wale_p->on_disk_master_record.next_log_sequence_number
+	uint64_t total_log_size = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 8 for both the crc32-s
+	uint64_t next_log_sequence_number = log_sequence_number + total_log_size;
+	if(next_log_sequence_number < log_sequence_number || next_log_sequence_number < total_log_size || next_log_sequence_number > wale_p->on_disk_master_record.next_log_sequence_number)
+	{
+		(*error) = PARAM_INVALID;
+		goto EXIT;
+	}
+
+	// calculate the offset of the log_record and its size including the crc32
+	uint64_t log_record_offset = file_offset_of_log_record + HEADER_SIZE + UINT64_C(4);
+	uint64_t total_log_record_size = ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(4); // 4 for the offset
+	uint64_t log_record_end_offset = log_record_offset + total_log_record_size;
+
+	// check for overflow in the log offset
+	if((log_record_end_offset < log_record_offset || log_record_end_offset < total_log_record_size) && log_record_end_offset != 0)
+	{
+		(*error) = HEADER_CORRUPTED;
+		goto EXIT;
+	}
+
+	(*log_record_size) = hdr.curr_log_record_size;
+
+	// allocate memeory for log record
+	log_record = malloc((*log_record_size));
+	if(log_record == NULL)
+		goto EXIT;
+
+	// read data for log_record from the file, data size amounting to log_record_size
+	if(!random_read_at(log_record, (*log_record_size), log_record_offset, &(wale_p->block_io_functions)))
+	{
+		(*error) = READ_IO_ERROR;
+		free(log_record);
+		log_record = NULL;
+		goto EXIT;
+	}
+
+	// calculate crc32 for the log_record read
+	uint32_t calculated_crc32 = crc32_init();
+	calculated_crc32 = crc32_util(calculated_crc32, log_record, (*log_record_size));
+
+	char crc_read[4];
+	// read crc for log_record from the file, data size amounting to log_record_size
+	if(!random_read_at(crc_read, UINT64_C(4), log_record_offset + (*log_record_size), &(wale_p->block_io_functions)))
+	{
+		(*error) = READ_IO_ERROR;
+		free(log_record);
+		log_record = NULL;
+		goto EXIT;
+	}
+
+	uint32_t parsed_crc32 = deserialize_le_uint32(crc_read);
+	if(parsed_crc32 != calculated_crc32)
+	{
+		(*error) = LOG_RECORD_CORRUPTED;
+		free(log_record);
+		log_record = NULL;
+		goto EXIT;
+	}
+
+	EXIT:;
 	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
 	return log_record;
