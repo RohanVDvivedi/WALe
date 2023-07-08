@@ -2,4 +2,4 @@
 
  * test case for concurrent log truncation
 
- * add function to test for validation of the log record and its header
+ * add function to test for validation of the log record and its header, use crc32_at function
