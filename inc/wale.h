@@ -32,8 +32,6 @@
 	This allows us to quicly travers th log records in forward or backward using the information only in the header.
 */
 
-#define EXTRA_LOG_RECORD_OVERHEAD UINT64_C(sizeof(uint32_t) * 4)
-
 typedef struct master_record master_record;
 struct master_record
 {

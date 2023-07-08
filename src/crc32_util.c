@@ -4,6 +4,11 @@
 
 #include<zlib.h>
 
+uint32_t crc32_init()
+{
+	return crc32(0UL, NULL, 0U);
+}
+
 uint32_t crc32_util(uint32_t crc, const void* data, uint64_t data_size)
 {
 	uint64_t data_processed = 0;

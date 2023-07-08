@@ -1,6 +1,7 @@
 #include<wale.h>
 
 #include<wale_get_lock_util.h>
+#include<crc32_util.h>
 #include<storage_byte_ordering.h>
 #include<util_random_read.h>
 #include<util_scroll_append_only_buffer.h>
@@ -79,13 +80,40 @@ struct log_record_header
 {
 	uint32_t prev_log_record_size;
 	uint32_t curr_log_record_size;
-	uint32_t crc32_header;
 };
 
+#define HEADER_SIZE UINT64_C(8)
+
 // 1 is success, 0 is failure
-static int parse_and_check_crc32_for_log_record_header(log_record_header* result, uint64_t offset, const block_io_ops* block_io_functions, int* error)
+static int parse_and_check_crc32_for_log_record_header_at(log_record_header* result, uint64_t file_offset, const block_io_ops* block_io_functions, int* error)
 {
-	// TODO
+	char serial_header[HEADER_SIZE + 4];
+
+	// attempt read for the header at the file_offset
+	if(!random_read_at(serial_header, HEADER_SIZE + 4, file_offset, block_io_functions))
+	{
+		(*error) = READ_IO_ERROR;
+		return 0;
+	}
+
+	// calculate crc32 of the first 8 bytes
+	uint32_t calcuated_crc32 = crc32_init();
+	calcuated_crc32 = crc32_util(calcuated_crc32, serial_header, HEADER_SIZE);
+
+	// deserialize all the fields
+	result->prev_log_record_size = deserialize_le_uint32(serial_header + 0);
+	result->curr_log_record_size = deserialize_le_uint32(serial_header + 4);
+	uint32_t parsed_crc32 = deserialize_le_uint32(serial_header + 8);
+
+	// compare the parsed crc32 with the calculated one
+	if(parsed_crc32 != calcuated_crc32)
+	{
+		(*error) = HEADER_CORRUPTED;
+		return 0;
+	}
+
+	(*error) = NO_ERROR;
+	return 1;
 }
 
 uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number, int* error)
