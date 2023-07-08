@@ -21,22 +21,6 @@ block_io_ops get_block_io_functions(const block_file* bf);
 
 wale walE;
 
-void print_all_flushed_logs()
-{
-	uint64_t log_sequence_number = get_first_log_sequence_number(&walE);
-	printf("first_log_sequence_numbers = %"PRIu64"\n\n", log_sequence_number);
-	printf("check_point_log_sequence_numbers = %"PRIu64"\n\n", get_check_point_log_sequence_number(&walE));
-	while(log_sequence_number != INVALID_LOG_SEQUENCE_NUMBER)
-	{
-		uint32_t log_record_size;
-		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size);
-		printf("log_sequence_number %" PRIu64 " (size = %u) => <%s>\n\n", log_sequence_number, log_record_size, log_record);
-		free(log_record);
-		log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number);
-	}
-	printf("last_flushed_log_sequence_numbers = %"PRIu64"\n\n", get_last_flushed_log_sequence_number(&walE));
-}
-
 int main()
 {
 	int new_file = 0;
@@ -58,10 +42,16 @@ int main()
 	int next_log_to_see[THREAD_COUNT] = {};
 
 	uint64_t log_sequence_number = get_first_log_sequence_number(&walE);
+	int error = 0;
 	while(log_sequence_number != INVALID_LOG_SEQUENCE_NUMBER)
 	{
 		uint32_t log_record_size;
-		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size);
+		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size, &error);
+		if(error != NO_ERROR && error != PARAM_INVALID)
+		{
+			printf("error = %d\n", error);
+			exit(-1);
+		}
 		int thread_id = -1;
 		int log_number = -1;
 		sscanf(log_record, LOG_FORMAT, &thread_id, &log_number);
@@ -72,7 +62,12 @@ int main()
 			printf("error at log_sequence_number = %"PRIu64" seen -> thread_id=%d log_number=%d\n", log_sequence_number, thread_id, log_number);
 			exit(-1);
 		}
-		log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number);
+		log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, &error);
+		if(error != NO_ERROR && error != PARAM_INVALID)
+		{
+			printf("error = %d\n", error);
+			exit(-1);
+		}
 	}
 
 	for(int i = 0; i < THREAD_COUNT; i++)
