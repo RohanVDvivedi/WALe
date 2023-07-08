@@ -147,7 +147,7 @@ uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 	if(!parse_and_check_crc32_for_log_record_header_at(&hdr, file_offset_of_log_record, &(wale_p->block_io_functions), error))
 		goto EXIT;
 
-	uint64_t total_size_curr_log_record = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(4); // 4 for crc32 of the log record itself
+	uint64_t total_size_curr_log_record = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 4 for crc32 of the log record itself and 4 for crc32 of the header
 
 	// the next_log_sequence_number is right after this log_record
 	next_log_sequence_number = log_sequence_number + total_size_curr_log_record;
@@ -203,7 +203,7 @@ uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 	if(!parse_and_check_crc32_for_log_record_header_at(&hdr, file_offset_of_log_record, &(wale_p->block_io_functions), error))
 		goto EXIT;
 
-	uint64_t total_size_prev_log_record = HEADER_SIZE + ((uint64_t)(hdr.prev_log_record_size)) + UINT64_C(4); // 4 for crc32 of the previous log record
+	uint64_t total_size_prev_log_record = HEADER_SIZE + ((uint64_t)(hdr.prev_log_record_size)) + UINT64_C(8); // 4 for crc32 of the previous log record and 4 for crc32 of its header
 
 	// log_sequence_number must be greater than the total_size of the prev_log_record
 	if(log_sequence_number <= total_size_prev_log_record)
