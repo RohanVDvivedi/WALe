@@ -4,10 +4,18 @@
 
 #include<stdlib.h>
 
-int random_read_at(void* buffer, uint32_t buffer_size, uint64_t file_offset, const block_io_ops* block_io_functions)
+int random_read_at(void* buffer, uint64_t buffer_size, uint64_t file_offset, const block_io_ops* block_io_functions)
 {
 	if(buffer_size == 0)
 		return 1;
+
+	// calculate the end offset
+	uint64_t end_offset = file_offset + buffer_size;
+
+	// an end_offset of 0 is valid -> which means last offset is UINT64_MAX
+	// if the end offset is lesser than the file_offset, then it is a uint64_t overflow
+	if(end_offset != 0 && (end_offset < file_offset || end_offset < buffer_size))
+		return 0;
 
 	uint64_t first_block_id = UINT_ALIGN_DOWN(file_offset, block_io_functions->block_size) / block_io_functions->block_size;
 	uint64_t end_block_id = UINT_ALIGN_UP(file_offset + buffer_size, block_io_functions->block_size) / block_io_functions->block_size;
