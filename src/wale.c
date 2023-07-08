@@ -339,10 +339,10 @@ static int is_file_offset_within_append_only_buffer(wale* wale_p, uint64_t file_
 	return 0;
 }
 
-static uint64_t get_log_sequence_number_for_next_log_record_and_advance_master_record(wale* wale_p, uint32_t log_record_size, int is_check_point)
+static uint64_t get_log_sequence_number_for_next_log_record_and_advance_master_record(wale* wale_p, uint32_t log_record_size, int is_check_point, uint32_t* prev_log_record_size)
 {
 	// compute the total slot size required by this new log record
-	uint64_t total_log_record_slot_size = ((uint64_t)log_record_size) + 8; // 4 bytes for prefix size and 4 bytes for suffix size
+	uint64_t total_log_record_slot_size = HEADER_SIZE + ((uint64_t)log_record_size) + UINT64_C(8); // 4 bytes for prefix size and 4 bytes for suffix size
 
 	// its log sequence number will simply be the next log sequence number
 	uint64_t log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number;
@@ -355,6 +355,12 @@ static uint64_t get_log_sequence_number_for_next_log_record_and_advance_master_r
 	// if earlier there were no log records on the disk, then this will be the new first_log_sequence_number
 	if(wale_p->in_memory_master_record.first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
 		wale_p->in_memory_master_record.first_log_sequence_number = log_sequence_number;
+
+	// if there was a last_flushed_log_sequence_number, then return also its size
+	if(wale_p->in_memory_master_record.last_flushed_log_sequence_number != INVALID_LOG_SEQUENCE_NUMBER)
+		(*prev_log_record_size) = (wale_p->in_memory_master_record.next_log_sequence_number - wale_p->in_memory_master_record.last_flushed_log_sequence_number) - HEADER_SIZE - UINT64_C(8);
+	else
+		(*prev_log_record_size) = 0;
 
 	// this will also be the new last_flushed_log_sequence_number
 	wale_p->in_memory_master_record.last_flushed_log_sequence_number = log_sequence_number;
@@ -450,14 +456,15 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
 
 	// take slot if the next log sequence number is in the append only buffer
-	log_sequence_number = get_log_sequence_number_for_next_log_record_and_advance_master_record(wale_p, log_record_size, is_check_point);
+	uint32_t prev_log_record_size;
+	log_sequence_number = get_log_sequence_number_for_next_log_record_and_advance_master_record(wale_p, log_record_size, is_check_point, &prev_log_record_size);
 
 	// exit suggesting failure to allocate a log_sequence_number
 	if(log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
 		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
 
 	// compute the total bytes we will write
-	uint64_t total_bytes_to_write = ((uint64_t)log_record_size) + UINT64_C(8);
+	uint64_t total_bytes_to_write = HEADER_SIZE + ((uint64_t)log_record_size) + UINT64_C(8); // 8 for the 2 crc32 values of the header and the log record each
 
 	// now take the slot in the append only buffer
 	uint64_t append_slot = wale_p->append_offset;
@@ -470,21 +477,41 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 
 	// serialize log_record_size as a byte array ordered in little endian format
 	char size_in_bytes[4];
-	serialize_le_uint32(size_in_bytes, log_record_size);
+	uint32_t calculated_crc32 = crc32_init();
 
 	int scroll_error = 0;
 
-	// write prefix
+	// write prev_log_record_size
+	serialize_le_uint32(size_in_bytes, prev_log_record_size);
+	calculated_crc32 = crc32_util(calculated_crc32, size_in_bytes, 4);
 	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
 	if(scroll_error)
 		goto SCROLL_FAIL;
 
-	// write log record itself
-	append_log_record_data(wale_p, &append_slot, log_record, log_record_size, &total_bytes_to_write, &scroll_error);
+	// write log_record_size
+	serialize_le_uint32(size_in_bytes, log_record_size);
+	calculated_crc32 = crc32_util(calculated_crc32, size_in_bytes, 4);
+	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
 	if(scroll_error)
 		goto SCROLL_FAIL;
 
-	// write suffix
+	// write calculated_crc32
+	serialize_le_uint32(size_in_bytes, calculated_crc32);
+	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
+	if(scroll_error)
+		goto SCROLL_FAIL;
+
+	// reinitialize the calculated_crc32
+	calculated_crc32 = crc32_init();
+
+	// write log record itself
+	append_log_record_data(wale_p, &append_slot, log_record, log_record_size, &total_bytes_to_write, &scroll_error);
+	calculated_crc32 = crc32_util(calculated_crc32, log_record, log_record_size);
+	if(scroll_error)
+		goto SCROLL_FAIL;
+
+	// write calculated_crc32
+	serialize_le_uint32(size_in_bytes, calculated_crc32);
 	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
 	if(scroll_error)
 		goto SCROLL_FAIL;
