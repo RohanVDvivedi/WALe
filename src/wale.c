@@ -74,6 +74,19 @@ uint64_t get_check_point_log_sequence_number(wale* wale_p)
 	return check_point_log_sequence_number;
 }
 
+typedef struct log_record_header log_record_header;
+struct log_record_header
+{
+	uint32_t prev_log_record_size;
+	uint32_t curr_log_record_size;
+};
+
+// 1 is success, 0 is failure
+static int get_and_check_crc32_for_log_record_header(log_record_header* result, uint64_t offset, const block_io_ops* block_io_functions, int* error)
+{
+	// TODO
+}
+
 uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number)
 {
 	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
