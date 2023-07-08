@@ -48,7 +48,7 @@ void print_all_flushed_logs()
 		uint64_t prev_log_sequence_number = get_prev_log_sequence_number_of(&walE, log_sequence_number, &error);
 		if(error)
 			printf("error = %d\n", error);
-		printf("(log_sequence_number=%"PRIu64") (prev=%"PRIu64") (next=%"PRIu64") (size = %u): <%s>\n", log_sequence_number, next_log_sequence_number, prev_log_sequence_number, log_record_size, log_record);
+		printf("(log_sequence_number=%"PRIu64") (prev=%"PRIu64") (next=%"PRIu64") (size = %u): <%s>\n", log_sequence_number, prev_log_sequence_number, next_log_sequence_number, log_record_size, log_record);
 		free(log_record);
 		log_sequence_number = next_log_sequence_number;
 	}
