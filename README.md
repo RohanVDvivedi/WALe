@@ -1,6 +1,8 @@
 # WALe
 This is a library implementation of a Write Ahead Log (WAL) for use in building a database storage engine.
 
+It supports, crc32 check for each your log records.
+
 ## Setup instructions
 **Install dependencies :**
  * [Cutlery](https://github.com/RohanVDvivedi/Cutlery)
