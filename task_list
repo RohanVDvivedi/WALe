@@ -1,3 +1,5 @@
+ * dry run for all offset calculation, logsequence number calculations, build util to test for overflow for all summations
+
  * test case for concurrent log truncation
 
  * test file corruption -> one for header corruption and one for log record's corruption
