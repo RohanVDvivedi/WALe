@@ -12,13 +12,13 @@ int random_read_at(void* buffer, uint64_t buffer_size, uint64_t file_offset, con
 	// calculate the end offset
 	uint64_t end_offset = file_offset + buffer_size;
 
-	// an end_offset of 0 is valid -> which means last offset is UINT64_MAX
 	// if the end offset is lesser than the file_offset, then it is a uint64_t overflow
-	if(end_offset != 0 && (end_offset < file_offset || end_offset < buffer_size))
+	// an end_offset of 0 is still valid -> which means last offset is UINT64_MAX
+	if((end_offset < file_offset || end_offset < buffer_size) && end_offset != 0)
 		return 0;
 
 	uint64_t first_block_id = UINT_ALIGN_DOWN(file_offset, block_io_functions->block_size) / block_io_functions->block_size;
-	uint64_t end_block_id = UINT_ALIGN_UP(file_offset + buffer_size, block_io_functions->block_size) / block_io_functions->block_size;
+	uint64_t end_block_id = UINT_ALIGN_UP(end_offset, block_io_functions->block_size) / block_io_functions->block_size;
 
 	void* blocks_of_concern = aligned_alloc(block_io_functions->block_buffer_alignment, (end_block_id - first_block_id) * block_io_functions->block_size);
 	if(blocks_of_concern == NULL)
