@@ -144,11 +144,12 @@ uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* log_record_size, int* error);
 
 // On a failure of any of the above 3 functions, error will be set to anyone of the below
-
+// in the increasing order of severity, we consider data corruption as non-recoverable
 #define NO_ERROR                 0
-#define READ_IO_ERROR            1
-#define HEADER_CORRUPTED         2 // CRC-32 checksum of log header check failed
-#define LOG_RECORD_CORRUPTED     3 // CRC-32 checksum of log record check failed
+#define PARAM_INVALID            1 // the passed log_sequence number is invalid
+#define READ_IO_ERROR            2
+#define HEADER_CORRUPTED         3 // CRC-32 checksum of log header check failed
+#define LOG_RECORD_CORRUPTED     4 // CRC-32 checksum of log record check failed
 
 // -------------------------------------------------------------
 // append functions

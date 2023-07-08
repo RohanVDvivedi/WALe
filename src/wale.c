@@ -118,33 +118,55 @@ static int parse_and_check_crc32_for_log_record_header_at(log_record_header* res
 
 uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_number, int* error)
 {
+	// initialize error to no error
+	(*error) = NO_ERROR;
+
 	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
 	// set it to INVALID_LOG_SEQUENCE_NUMBER, which is default result
 	uint64_t next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
 	// if the wale has any records, and its first <= log_sequence_number < last, then read the size and add it to the log_sequence_number to get its next
-	if(wale_p->on_disk_master_record.first_log_sequence_number != INVALID_LOG_SEQUENCE_NUMBER &&
-		wale_p->on_disk_master_record.first_log_sequence_number <= log_sequence_number && 
-		log_sequence_number < wale_p->on_disk_master_record.last_flushed_log_sequence_number
+	if(wale_p->on_disk_master_record.first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER ||
+		log_sequence_number < wale_p->on_disk_master_record.first_log_sequence_number || 
+		wale_p->on_disk_master_record.last_flushed_log_sequence_number < log_sequence_number
 		)
 	{
-		// calculate the offset in file of the log_record at log_sequence_number
-		uint64_t file_offset_of_log_record = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
-
-		// read its size
-		char size_of_log_record_bytes[4];
-		if(!random_read_at(size_of_log_record_bytes, 4, file_offset_of_log_record, &(wale_p->block_io_functions)))
-			goto FAILED;
-
-		uint32_t size_of_log_record = deserialize_le_uint32(size_of_log_record_bytes);
-
-		// the next_log_sequence_number is right after this log_record
-		next_log_sequence_number = log_sequence_number + ((uint64_t)size_of_log_record) + UINT64_C(8); // 8 for prefix and suffix size
-
-		FAILED:;
+		(*error) = INVALID_PARAM;
+		goto EXIT;
 	}
 
+	// next of last_flushed_log_sequence_number does not exists
+	if(log_sequence_number == wale_p->on_disk_master_record.last_flushed_log_sequence_number)
+		goto EXIT;
+
+	// calculate the offset in file of the log_record at log_sequence_number
+	uint64_t file_offset_of_log_record = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
+
+	log_record_header hdr;
+	if(!parse_and_check_crc32_for_log_record_header_at(hdr, file_offset_of_log_record, &(wale_p->block_io_functions), error))
+		goto EXIT;
+
+	uint64_t total_size_curr_log_record = HEADER_SIZE + ((uint64_t)hdr->curr_log_record_size) + UINT64_C(4); // 4 for crc32 of the log record itself
+
+	// the next_log_sequence_number is right after this log_record
+	next_log_sequence_number = log_sequence_number + total_size_curr_log_record;
+
+	// check for overflow
+	if(next_log_sequence_number < log_sequence_number || next_log_sequence_number < total_size_curr_log_record)
+	{
+		(*error) = HEADER_CORRUPTED;
+		goto EXIT;
+	}
+
+	// next_log_sequence_number can not be higher than the on_disk_master_record.next_log_sequence_number
+	if(next_log_sequence_number > wale_p->on_disk_master_record.last_flushed_log_sequence_number)
+	{
+		(*error) = HEADER_CORRUPTED;
+		goto EXIT;
+	}
+
+	EXIT:;
 	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
 	return next_log_sequence_number;
@@ -163,18 +185,18 @@ uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 		log_sequence_number <= wale_p->on_disk_master_record.last_flushed_log_sequence_number
 		)
 	{
+		// initialize error to no error
+		(*error) = NO_ERROR;
+
 		// calculate the offset in file of the log_record at log_sequence_number
 		uint64_t file_offset_of_log_record = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 
-		// read size of its previous log_record
-		char size_of_prev_log_record_bytes[4];
-		if(!random_read_at(size_of_prev_log_record_bytes, 4, file_offset_of_log_record - 4, &(wale_p->block_io_functions)))
+		log_record_header hdr;
+		if(!parse_and_check_crc32_for_log_record_header_at(hdr, file_offset_of_log_record, &(wale_p->block_io_functions), error))
 			goto FAILED;
 
-		uint32_t size_of_prev_log_record = deserialize_le_uint32(size_of_prev_log_record_bytes);
-
 		// the prev_log_sequence_number is right before this one
-		prev_log_sequence_number = log_sequence_number - (((uint64_t)size_of_prev_log_record) + UINT64_C(8)); // 8 for prefix and suffix size of the previous log record
+		prev_log_sequence_number = log_sequence_number - (HEADER_SIZE + (((uint64_t)hdr->prev_log_record_size) + UINT64_C(4))); // 4 for crc32 of the previous log record
 
 		FAILED:;
 	}
