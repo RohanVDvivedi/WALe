@@ -1,7 +1,5 @@
  * test case for concurrent log truncation
 
- * change in log format in structural form
- * store uint32_t last_flushed_log_record_size in master_record
- * all read functions get_next_log_sequence_number, get_prev_log_sequence_number and get_log_record_at, will calculate crc32 of the log_record at log_sequence_number in context, before returning the result
- * implement a function to read from a file_offset block by block and calculate its crc32
+ * all read functions get_next_log_sequence_number, get_prev_log_sequence_number and get_log_record_at, will calculate and compare crc32 of the log's header at log_sequence_number in context, before returning the result
  * make sure that the log_record being read (or crc32 checked) is within bounds file_offset_of(first_log_sequence_number) <= buffer_start && buffer_end <= file_offset_of(next_log_sequence_number)
+ * fix read and append_only_write functions
