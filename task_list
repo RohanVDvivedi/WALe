@@ -1,3 +1,5 @@
  * test case for concurrent log truncation
 
- * test file corruption one for header corruption and one for log record's corruption
+ * test file corruption -> one for header corruption and one for log record's corruption
+
+ * add function to test for validation of the log record and its header
