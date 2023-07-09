@@ -149,17 +149,17 @@ uint64_t get_next_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 
 	uint64_t total_size_curr_log_record = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 4 for crc32 of the log record itself and 4 for crc32 of the header
 
-	// the next_log_sequence_number is right after this log_record
-	next_log_sequence_number = log_sequence_number + total_size_curr_log_record;
-
 	// check for overflow
-	if(next_log_sequence_number < log_sequence_number || next_log_sequence_number < total_size_curr_log_record)
+	if(will_unsigned_sum_overflow(uint64_t, log_sequence_number, total_size_curr_log_record))
 	{
 		(*error) = HEADER_CORRUPTED;
 		goto EXIT;
 	}
 
-	// next_log_sequence_number can not be higher than the on_disk_master_record.next_log_sequence_number
+	// the next_log_sequence_number is right after this log_record
+	next_log_sequence_number = log_sequence_number + total_size_curr_log_record;
+
+	// next_log_sequence_number can not be higher than the on_disk_master_record.last_flushed_log_sequence_number
 	if(next_log_sequence_number > wale_p->on_disk_master_record.last_flushed_log_sequence_number)
 	{
 		(*error) = HEADER_CORRUPTED;
@@ -257,8 +257,18 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 
 	// make sure that we will not be reading past or at the offset of wale_p->on_disk_master_record.next_log_sequence_number
 	uint64_t total_log_size = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 8 for both the crc32-s
+
+	// make sure that the next_log_sequence_number of this log_record does not overflow
+	if(will_unsigned_sum_overflow(uint64_t, log_sequence_number, total_log_size))
+	{
+		(*error) = PARAM_INVALID;
+		goto EXIT;
+	}
+
 	uint64_t next_log_sequence_number = log_sequence_number + total_log_size;
-	if(next_log_sequence_number < log_sequence_number || next_log_sequence_number < total_log_size || next_log_sequence_number > wale_p->on_disk_master_record.next_log_sequence_number)
+
+	// the next log_sequence number of this log_record can not be more than the log_sequence number of the on_disk_master_record
+	if(next_log_sequence_number > wale_p->on_disk_master_record.next_log_sequence_number)
 	{
 		(*error) = PARAM_INVALID;
 		goto EXIT;
@@ -266,19 +276,9 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 
 	// calculate the offset of the log_record and its size including the crc32
 	uint64_t log_record_offset = file_offset_of_log_record + HEADER_SIZE + UINT64_C(4);
-	uint64_t total_log_record_size = ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(4); // 4 for the offset
-	uint64_t log_record_end_offset = log_record_offset + total_log_record_size;
-
-	// check for overflow in the log offset
-	if((log_record_end_offset < log_record_offset || log_record_end_offset < total_log_record_size) && log_record_end_offset != 0)
-	{
-		(*error) = HEADER_CORRUPTED;
-		goto EXIT;
-	}
-
-	(*log_record_size) = hdr.curr_log_record_size;
 
 	// allocate memeory for log record
+	(*log_record_size) = hdr.curr_log_record_size;
 	log_record = malloc((*log_record_size));
 	if(log_record == NULL)
 	{
@@ -299,8 +299,8 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 	uint32_t calculated_crc32 = crc32_init();
 	calculated_crc32 = crc32_util(calculated_crc32, log_record, (*log_record_size));
 
-	char crc_read[4];
 	// read crc for log_record from the file, data size amounting to log_record_size
+	char crc_read[4];
 	if(!random_read_at(crc_read, UINT64_C(4), log_record_offset + (*log_record_size), &(wale_p->block_io_functions)))
 	{
 		(*error) = READ_IO_ERROR;
