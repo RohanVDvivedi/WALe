@@ -1,1 +1,3 @@
  * test case for concurrent log truncation
+
+ * (*future) allow support for wider than 64 bit log sequence numbers
