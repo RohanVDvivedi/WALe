@@ -324,14 +324,6 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 	return log_record;
 }
 
-static uint64_t get_file_offset_for_next_log_sequence_number_to_append(wale* wale_p)
-{
-	if(wale_p->in_memory_master_record.first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
-		return wale_p->block_io_functions.block_size;
-	else
-		return wale_p->in_memory_master_record.next_log_sequence_number - wale_p->in_memory_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
-}
-
 static uint64_t get_log_sequence_number_for_next_log_record_and_advance_master_record(wale* wale_p, uint32_t log_record_size, int is_check_point, uint32_t* prev_log_record_size)
 {
 	// compute the total slot size required by this new log record
@@ -438,13 +430,32 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 	// share lock the append_only_buffer, snce we are reading the buffer_start_block_id
 	shared_lock(&(wale_p->append_only_buffer_lock), WRITE_PREFERRING, BLOCKING);
 
-	// we wait, while the offset for the next_log_sequence_number is not within the append only buffer
-	while(!is_file_offset_within_append_only_buffer(wale_p, get_file_offset_for_next_log_sequence_number_to_append(wale_p))
-		&& !wale_p->major_scroll_error)
+	while(1)
 	{
-		shared_unlock(&(wale_p->append_only_buffer_lock));
-		pthread_cond_wait(&(wale_p->wait_for_scroll), get_wale_lock(wale_p));
-		shared_lock(&(wale_p->append_only_buffer_lock), WRITE_PREFERRING, BLOCKING);
+		uint64_t file_offset_for_next_log_sequence_number;
+
+		if(wale_p->in_memory_master_record.first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
+			file_offset_for_next_log_sequence_number = wale_p->block_io_functions.block_size;
+		else
+		{
+			uint64_t offset_from_first_log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number - wale_p->in_memory_master_record.first_log_sequence_number;
+
+			// make sure that the file_offset for the next_log_sequence_number will not overflow
+			if(will_unsigned_sum_overflow(uint64_t, offset_from_first_log_sequence_number, wale_p->block_io_functions.block_size))
+				goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
+
+			file_offset_for_next_log_sequence_number = offset_from_first_log_sequence_number + wale_p->block_io_functions.block_size;
+		}
+
+		if(!is_file_offset_within_append_only_buffer(wale_p, file_offset_for_next_log_sequence_number)
+			&& !wale_p->major_scroll_error)
+		{
+			shared_unlock(&(wale_p->append_only_buffer_lock));
+			pthread_cond_wait(&(wale_p->wait_for_scroll), get_wale_lock(wale_p));
+			shared_lock(&(wale_p->append_only_buffer_lock), WRITE_PREFERRING, BLOCKING);
+		}
+		else
+			break;
 	}
 
 	if(wale_p->major_scroll_error)
