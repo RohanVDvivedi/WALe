@@ -48,8 +48,8 @@ int crc32_at(uint32_t* crc, uint64_t data_size, uint64_t file_offset, const bloc
 		return 1;
 	}
 
-	// make sure that the last offset to be written does not overflow (as we know buffer_size != 0)
-	// last_offset to be written = file_offset + (buffer_size - 1)
+	// make sure that the last offset to be crc-ed does not overflow (as we know buffer_size != 0)
+	// last_offset to be crc-ed = file_offset + (buffer_size - 1)
 	if(will_unsigned_sum_overflow(uint64_t, file_offset, (buffer_size - 1)))
 		return 0;
 
