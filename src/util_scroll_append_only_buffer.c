@@ -33,3 +33,8 @@ int scroll_append_only_buffer(wale* wale_p)
 
 	return 1;
 }
+
+int is_file_offset_within_append_only_buffer(wale* wale_p, uint64_t file_offset)
+{
+	return ((wale_p->buffer_start_block_id * wale_p->block_io_functions.block_size) <= file_offset && file_offset < ((wale_p->buffer_start_block_id + wale_p->buffer_block_count) * wale_p->block_io_functions.block_size));
+}

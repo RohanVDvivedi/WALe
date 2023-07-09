@@ -332,13 +332,6 @@ static uint64_t get_file_offset_for_next_log_sequence_number_to_append(wale* wal
 		return wale_p->in_memory_master_record.next_log_sequence_number - wale_p->in_memory_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 }
 
-static int is_file_offset_within_append_only_buffer(wale* wale_p, uint64_t file_offset)
-{
-	if(wale_p->buffer_start_block_id * wale_p->block_io_functions.block_size <= file_offset && file_offset < (wale_p->buffer_start_block_id + wale_p->buffer_block_count) * wale_p->block_io_functions.block_size)
-		return 1;
-	return 0;
-}
-
 static uint64_t get_log_sequence_number_for_next_log_record_and_advance_master_record(wale* wale_p, uint32_t log_record_size, int is_check_point, uint32_t* prev_log_record_size)
 {
 	// compute the total slot size required by this new log record
