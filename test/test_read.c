@@ -26,16 +26,22 @@ void print_all_flushed_logs()
 	while(log_sequence_number != INVALID_LOG_SEQUENCE_NUMBER)
 	{
 		uint32_t log_record_size;
-		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size, &error);
+		int valid = validate_log_record_at(&walE, log_sequence_number, &log_record_size, &error);
+		if(!valid)
+		{
+			printf("(log_sequence_number=%"PRIu64") (valid=%d) (error=%d)\n\n", log_sequence_number, valid, error);
+			exit(-1);
+		}
+		uint64_t prev_log_sequence_number = get_prev_log_sequence_number_of(&walE, log_sequence_number, &error);
 		if(error)
 			printf("error = %d\n", error);
 		uint64_t next_log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, &error);
 		if(error)
 			printf("error = %d\n", error);
-		uint64_t prev_log_sequence_number = get_prev_log_sequence_number_of(&walE, log_sequence_number, &error);
+		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size, &error);
 		if(error)
 			printf("error = %d\n", error);
-		printf("(log_sequence_number=%"PRIu64") (prev=%"PRIu64") (next=%"PRIu64") (size = %u): <%s>\n", log_sequence_number, prev_log_sequence_number, next_log_sequence_number, log_record_size, log_record);
+		printf("(log_sequence_number=%"PRIu64") (prev=%"PRIu64") (next=%"PRIu64") (size = %u): <%s>\n\n", log_sequence_number, prev_log_sequence_number, next_log_sequence_number, log_record_size, log_record);
 		free(log_record);
 		log_sequence_number = next_log_sequence_number;
 	}
