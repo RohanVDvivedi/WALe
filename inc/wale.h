@@ -143,7 +143,10 @@ uint64_t get_prev_log_sequence_number_of(wale* wale_p, uint64_t log_sequence_num
 // you must free the returned memory
 void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* log_record_size, int* error);
 
-// On a failure of any of the above 3 functions, error will be set to anyone of the below
+// returns 1 if the log_record is not corrupted and passes all the crc checks (crc32 check for header and log_record itself)
+int validate_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* log_record_size, int* error);
+
+// On a failure of any of the above 4 functions, error will be set to anyone of the below
 // in the increasing order of severity, we consider data corruption as non-recoverable
 #define NO_ERROR                 0
 #define PARAM_INVALID            1 // the passed log_sequence number is invalid
