@@ -348,9 +348,11 @@ static uint64_t get_log_sequence_number_for_next_log_record_and_advance_master_r
 	uint64_t log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number;
 
 	// check for overflow of the next_log_sequence_number, upon alloting this slot
-	uint64_t new_next_log_sequence_number = log_sequence_number + total_log_record_slot_size;
-	if(new_next_log_sequence_number < log_sequence_number || new_next_log_sequence_number < total_log_record_slot_size)
+	// we do not advance the master record, if the next_log_sequence_number overflows
+	if(will_unsigned_sum_overflow(uint64_t, log_sequence_number, total_log_record_slot_size))
 		return INVALID_LOG_SEQUENCE_NUMBER;
+
+	uint64_t new_next_log_sequence_number = log_sequence_number + total_log_record_slot_size;
 
 	// if earlier there were no log records on the disk, then this will be the new first_log_sequence_number
 	if(wale_p->in_memory_master_record.first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
