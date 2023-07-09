@@ -54,7 +54,17 @@ void* append_logs(void* tid)
 		// sleep for random time
 
 		if(log_number % FLUSH_EVERY_LOGS_PER_THREAD == 0)
-			printf("flushed until = %" PRIu64 " by %d\n\n", flush_all_log_records(&walE), thread_id);
+		{
+			uint64_t flushed_until = flush_all_log_records(&walE);
+			#ifdef DEBUG_PRINT_LOG_BUFFER
+				printf("flushed until = %" PRIu64 " by %d\n\n", flushed_until, thread_id);
+			#endif
+			if(flushed_until == INVALID_LOG_SEQUENCE_NUMBER)
+			{
+				printf("failed to flush logs from wale\n");
+				exit(-1);
+			}
+		}
 	}
 }
 
