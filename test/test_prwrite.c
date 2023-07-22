@@ -92,7 +92,7 @@ int main()
 	for(int tid = 0; tid < THREAD_COUNT; tid++)
 	{
 		thread_ids[tid] = tid;
-		submit_job(exe, append_logs, &(thread_ids[tid]), NULL, 0);
+		submit_job(exe, append_logs, &(thread_ids[tid]), NULL, NULL, 0);
 	}
 
 	shutdown_executor(exe, 0);
