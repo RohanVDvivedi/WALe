@@ -92,11 +92,11 @@ int main()
 	for(int tid = 0; tid < THREAD_COUNT; tid++)
 	{
 		thread_ids[tid] = tid;
-		submit_job(exe, append_logs, &(thread_ids[tid]), NULL, NULL, 0);
+		submit_job_executor(exe, append_logs, &(thread_ids[tid]), NULL, NULL, 0);
 	}
 
 	shutdown_executor(exe, 0);
-	wait_for_all_threads_to_complete(exe);
+	wait_for_all_executor_workers_to_complete(exe);
 	delete_executor(exe);
 
 	printf("flushed until = %" PRIu64 "\n\n", flush_all_log_records(&walE));
