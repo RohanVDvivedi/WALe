@@ -1,3 +1,12 @@
  * test case for concurrent log truncation
 
- * (*future) allow support for wider than 64 bit log sequence numbers, GNU MP (GMP) is a good way to support this, especially when __int128 is not portable
+ * allowing support for maximum 12 byte log_sequence_number
+   * 12 byte log_sequence_number is enough for any humane task
+   * make a struct of uint64_t limbs[2] and call it log sequence number
+   * define its max and min values
+   * implement check functions to check if it overflows on addition
+   * implement compare function to compare 2 log sequence numbers
+   * implement uint32_t_to_log_sequence_number and uint64_t_to_log_sequence_number
+   * write methods to substract two log_sequence_numbers from it and add a uint32_t to it
+   * and replace all references to it
+   * keep number of bytes in log_sequence_number variable minimum 8 and maximum 16, both inclusive
