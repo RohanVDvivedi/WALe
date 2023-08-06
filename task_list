@@ -2,7 +2,7 @@
 
  * allowing support for maximum 12 byte log_sequence_number
    * 12 byte log_sequence_number is enough for any humane task
-   * make a struct of uint64_t limbs[2] and call it log sequence number
+   * make a struct of uint32_t limbs[4] and call it log sequence number
    * define its max and min values
    * implement check functions to check if it overflows on addition
    * implement compare function to compare 2 log sequence numbers
