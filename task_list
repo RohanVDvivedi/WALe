@@ -1,12 +1,16 @@
  * test case for concurrent log truncation
 
- * allowing support for maximum 12 byte log_sequence_number
-   * 12 byte log_sequence_number is enough for any humane task
-   * make a struct of uint32_t limbs[4] and call it log sequence number
-   * define its max and min values
-   * implement check functions to check if it overflows on addition
-   * implement compare function to compare 2 log sequence numbers
-   * implement uint32_t_to_log_sequence_number and uint64_t_to_log_sequence_number
-   * write methods to substract two log_sequence_numbers from it and add a uint32_t to it
-   * and replace all references to it
-   * keep number of bytes in log_sequence_number variable minimum 8 and maximum 16, both inclusive
+ * FUTURE (ONLY WHEN REQUIRED, POSTGRESQL AND MYSQL BOTH USE FIXED 64 BIT LOG SEQUENCE NUMBER, SO IT IS NOT AN URGENT REQUIREMENT)
+   * implement
+       struct log_seq_nr {
+          uint32_t limbs[4];
+       }
+   * implement function to add (with overflow support, and max_limit (=0 implies no limit)), sub (with underflow support) and compare, 2 log_seq_nr
+   * implement function to initialize it from an uint64_t or uint32_t
+   * implement function to constants to define the min (0) and max (all 1s) log_seq_nr
+   * implement function to serialize and deserialize n bytes (n <= 16) of the log_seq_nr
+   * implement function to set a bit in log_seq_nr
+   * allow WALe to have a variable number of bytes in its log_seq_nr representation (8 to 16 both inclusive)
+   * refactor WALe to use log_seq_nr
+   * refactor WALe to start from any log_seq_nr, except 0, which implies read current file
+   * refactor WALe to get current file size
