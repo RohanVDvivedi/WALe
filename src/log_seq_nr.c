@@ -77,9 +77,43 @@ int set_bit_in_log_seq_nr(log_seq_nr* res, uint32_t bit_index)
 	return 1;
 }
 
-void serialize_log_seq_nr(void* bytes, uint32_t bytes_size, log_seq_nr l);
+#include<storage_byte_ordering.h>
 
-log_seq_nr deserialize_log_seq_nr(const char* bytes, uint32_t bytes_size);
+void serialize_log_seq_nr(void* bytes, uint32_t bytes_size, log_seq_nr l)
+{
+	bytes_size = min(bytes_size, LOG_SEQ_NR_MAX_BYTES);
+
+	uint32_t limb_index = 0;
+	while(bytes_size > 0)
+	{
+		uint32_t bytes_to_write = min(sizeof(uint64_t), bytes_size);
+
+		serialize_le_uint64(bytes, bytes_to_write, l.limbs[limb_index++]);
+
+		bytes_size -= bytes_to_write;
+		bytes += bytes_to_write;
+	}
+}
+
+log_seq_nr deserialize_log_seq_nr(const char* bytes, uint32_t bytes_size)
+{
+	log_seq_nr res = {};
+
+	bytes_size = min(bytes_size, LOG_SEQ_NR_MAX_BYTES);
+
+	uint32_t limb_index = 0;
+	while(bytes_size > 0)
+	{
+		uint32_t bytes_to_read = min(sizeof(uint64_t), bytes_size);
+
+		res.limbs[limb_index++] = deserialize_le_uint64(bytes, bytes_to_read);
+
+		bytes_size -= bytes_to_read;
+		bytes += bytes_to_read;
+	}
+
+	return res;
+}
 
 #include<stdio.h>
 
