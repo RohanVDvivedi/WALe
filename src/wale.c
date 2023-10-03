@@ -101,9 +101,9 @@ static int parse_and_check_crc32_for_log_record_header_at(log_record_header* res
 	calcuated_crc32 = crc32_util(calcuated_crc32, serial_header, HEADER_SIZE);
 
 	// deserialize all the fields
-	result->prev_log_record_size = deserialize_le_uint32(serial_header + 0);
-	result->curr_log_record_size = deserialize_le_uint32(serial_header + 4);
-	uint32_t parsed_crc32 = deserialize_le_uint32(serial_header + 8);
+	result->prev_log_record_size = deserialize_le_uint32(serial_header + 0, sizeof(uint32_t));
+	result->curr_log_record_size = deserialize_le_uint32(serial_header + 4, sizeof(uint32_t));
+	uint32_t parsed_crc32 = deserialize_le_uint32(serial_header + 8, sizeof(uint32_t));
 
 	// compare the parsed crc32 with the calculated one
 	if(parsed_crc32 != calcuated_crc32)
@@ -309,7 +309,7 @@ void* get_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t* lo
 		goto EXIT;
 	}
 
-	uint32_t parsed_crc32 = deserialize_le_uint32(crc_read);
+	uint32_t parsed_crc32 = deserialize_le_uint32(crc_read, sizeof(uint32_t));
 	if(parsed_crc32 != calculated_crc32)
 	{
 		(*error) = LOG_RECORD_CORRUPTED;
@@ -392,7 +392,7 @@ int validate_log_record_at(wale* wale_p, uint64_t log_sequence_number, uint32_t*
 		goto EXIT;
 	}
 
-	uint32_t parsed_crc32 = deserialize_le_uint32(crc_read);
+	uint32_t parsed_crc32 = deserialize_le_uint32(crc_read, sizeof(uint32_t));
 	if(parsed_crc32 != calculated_crc32)
 	{
 		(*error) = LOG_RECORD_CORRUPTED;
@@ -571,21 +571,21 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 	int scroll_error = 0;
 
 	// write prev_log_record_size
-	serialize_le_uint32(size_in_bytes, prev_log_record_size);
+	serialize_le_uint32(size_in_bytes, sizeof(uint32_t), prev_log_record_size);
 	calculated_crc32 = crc32_util(calculated_crc32, size_in_bytes, 4);
 	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
 	if(scroll_error)
 		goto SCROLL_FAIL;
 
 	// write log_record_size
-	serialize_le_uint32(size_in_bytes, log_record_size);
+	serialize_le_uint32(size_in_bytes, sizeof(uint32_t), log_record_size);
 	calculated_crc32 = crc32_util(calculated_crc32, size_in_bytes, 4);
 	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
 	if(scroll_error)
 		goto SCROLL_FAIL;
 
 	// write calculated_crc32
-	serialize_le_uint32(size_in_bytes, calculated_crc32);
+	serialize_le_uint32(size_in_bytes, sizeof(uint32_t), calculated_crc32);
 	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
 	if(scroll_error)
 		goto SCROLL_FAIL;
@@ -600,7 +600,7 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 		goto SCROLL_FAIL;
 
 	// write calculated_crc32
-	serialize_le_uint32(size_in_bytes, calculated_crc32);
+	serialize_le_uint32(size_in_bytes, sizeof(uint32_t), calculated_crc32);
 	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
 	if(scroll_error)
 		goto SCROLL_FAIL;
