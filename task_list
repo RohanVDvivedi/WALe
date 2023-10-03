@@ -11,6 +11,7 @@
    * implement function to serialize and deserialize n bytes (n <= 16) of the log_seq_nr
    * implement function to set a bit in log_seq_nr
    * allow WALe to have a variable number of bytes in its log_seq_nr representation (8 to 16 both inclusive)
+   * a print function to print log_seq_nr
    * refactor WALe to use log_seq_nr
    * refactor WALe to start from any log_seq_nr, except 0, which implies read current file
    * refactor WALe to get current file size
