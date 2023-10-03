@@ -5,7 +5,7 @@
        struct log_seq_nr {
           uint32_t limbs[4];
        }
-   * implement function to add (with overflow support, and max_limit (=0 implies no limit)), sub (with underflow support) and compare, 2 log_seq_nr
+   * implement function to add (with overflow support, and max_limit (=0 implies no limit, else ensure that result is lesser than max_limit)), sub (with underflow support) and compare, 2 log_seq_nr
    * implement function to initialize it from an uint64_t or uint32_t
    * implement function to constants to define the min (0) and max (all 1s) log_seq_nr
    * implement function to serialize and deserialize n bytes (n <= 16) of the log_seq_nr
