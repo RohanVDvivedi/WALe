@@ -1,6 +1,5 @@
  * test case for concurrent log truncation
 
- * implement log_seq_nr
  * allow WALe to have a variable number of bytes in its log_seq_nr representation
  * refactor WALe to use log_seq_nr
  * refactor WALe to start from any log_seq_nr, except 0, which implies read current file
