@@ -20,13 +20,22 @@ struct log_seq_nr
 
 int compare_log_seg_nr(log_seq_nr a, log_seq_nr b);
 
+// adds 2 log_seq_nr-s, does not check for overflow, returns carry bit
+uint64_t add_log_seq_nr_overflow_unsafe(log_seq_nr* res, log_seq_nr a, log_seq_nr b);
+
 // res will be set with addition (a + b), on success (i.e. return 1)
-// failure happens in case of an overflow OR if the result is strictly greater than max_limit
+// failure happens in case of an overflow OR if the result is strictly greater than max_limit (max_limit is checked only if it is non zero)
 int add_log_seq_nr(log_seq_nr* res, log_seq_nr a, log_seq_nr b, log_seq_nr max_limit);
+
+// subtracts 2 log_seq_nr-s, does not check for underflow, returns carry bit
+uint64_t sub_log_seq_nr_underflow_unsafe(log_seq_nr* res, log_seq_nr a, log_seq_nr b);
 
 // res will be set with subtraction, on success (i.e. return 1)
 // failure happens in case of an underflow, when (a < b)
 int sub_log_seq_nr(log_seq_nr* res, log_seq_nr a, log_seq_nr b);
+
+// set an explicit bit in log_seq_nr
+int set_bit_in_log_seq_nr(log_seq_nr* res, uint32_t bit_index);
 
 // serialize and deserialize log_seq_nr-s
 void serialize_log_seq_nr(void* bytes, uint32_t bytes_size, log_seq_nr l);
