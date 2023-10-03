@@ -11,7 +11,7 @@
 #include<log_seq_nr.h>
 
 // 0 log sequence number will never show up in the wal file
-#define INVALID_LOG_SEQUENCE_NUMBER UINT64_C(0)
+#define INVALID_LOG_SEQUENCE_NUMBER LOG_SEQ_NR_MIN
 
 /*
 	Each log record has the following format.
@@ -36,6 +36,9 @@
 typedef struct master_record master_record;
 struct master_record
 {
+	// width of log_seq_nr to use in bytes
+	uint32_t log_sequence_number_width;
+
 	// the log sequence number at offset block_io_functions.block_size in the block file
 	log_seq_nr first_log_sequence_number;
 

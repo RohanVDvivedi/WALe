@@ -22,7 +22,7 @@ struct log_seq_nr
 #define LOG_SEQ_NR_MIN ((log_seq_nr){.limbs = {}})
 #define LOG_SEQ_NR_MAX ((log_seq_nr){.limbs = {UNSIGNED_MAX_VALUE_OF(uint64_t), UNSIGNED_MAX_VALUE_OF(uint64_t)}})
 
-int compare_log_seg_nr(log_seq_nr a, log_seq_nr b);
+int compare_log_seq_nr(log_seq_nr a, log_seq_nr b);
 
 // adds 2 log_seq_nr-s, does not check for overflow, returns carry bit
 uint64_t add_log_seq_nr_overflow_unsafe(log_seq_nr* res, log_seq_nr a, log_seq_nr b);

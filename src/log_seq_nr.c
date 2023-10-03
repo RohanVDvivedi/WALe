@@ -2,7 +2,7 @@
 
 #include<cutlery_math.h>
 
-int compare_log_seg_nr(log_seq_nr a, log_seq_nr b)
+int compare_log_seq_nr(log_seq_nr a, log_seq_nr b)
 {
 	int res = 0;
 	for(uint32_t i = LOG_SEQ_NR_LIMBS_COUNT; i > 0 && res == 0;)
