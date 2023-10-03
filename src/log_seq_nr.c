@@ -115,6 +115,21 @@ log_seq_nr deserialize_log_seq_nr(const char* bytes, uint32_t bytes_size)
 	return res;
 }
 
+int cast_to_uint64(uint64_t* value, log_seq_nr a)
+{
+	uint32_t limbs_required = LOG_SEQ_NR_LIMBS_COUNT;
+	while(limbs_required > 0 && a.limbs[limbs_required-1] == 0)
+		limbs_required--;
+	
+	if(limbs_required <= 1)
+	{
+		(*value) = a.limbs[0];
+		return 1;
+	}
+
+	return 0;
+}
+
 #include<stdio.h>
 
 void print_log_seq_nr(log_seq_nr l)

@@ -41,6 +41,10 @@ int sub_log_seq_nr(log_seq_nr* res, log_seq_nr a, log_seq_nr b);
 // set an explicit bit in log_seq_nr
 int set_bit_in_log_seq_nr(log_seq_nr* res, uint32_t bit_index);
 
+// returns true, if the given log_seq_nr, can fit on a single uint64_t, the value will be set with the value of a
+// else a 0 (false) is returned, with value unset
+int cast_to_uint64(uint64_t* value, log_seq_nr a);
+
 // serialize and deserialize log_seq_nr-s
 void serialize_log_seq_nr(void* bytes, uint32_t bytes_size, log_seq_nr l);
 log_seq_nr deserialize_log_seq_nr(const char* bytes, uint32_t bytes_size);
