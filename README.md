@@ -1,7 +1,7 @@
 # WALe
 This is a library implementation of a Write Ahead Log (WAL) for use in building a database storage engine.
 
-It supports, crc32 check for each your log records.
+It supports, crc32 check for each one your log records inserted.
 
 ## Setup instructions
 **Install dependencies :**
