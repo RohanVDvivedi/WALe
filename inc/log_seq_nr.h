@@ -1,13 +1,15 @@
 #ifndef LOG_SEQ_NR_H
 #define LOG_SEQ_NR_H
 
+#include<inttypes.h>
+
 // this can be any value, but 2 is just right for all practical purposes
 // if you modify this, be sure to modify LOG_SEQ_NR_MAX
 #define LOG_SEQ_NR_LIMBS_COUNT 2
 
 #define LOG_SEQ_NR_MAX_BYTES   (LOG_SEQ_NR_LIMBS_COUNT * sizeof(uint64_t))
 
-typedef struct log_seq_ne log_seq_nr;
+typedef struct log_seq_nr log_seq_nr;
 struct log_seq_nr
 {
 	uint64_t limbs[LOG_SEQ_NR_LIMBS_COUNT];
