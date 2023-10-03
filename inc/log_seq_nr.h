@@ -3,22 +3,27 @@
 
 #include<inttypes.h>
 
+#include<cutlery_stds.h>
+
+// type of each digit in log_seg_nr
+#define limb_type uint64_t
+
 // this can be any value, but 2 is just right for all practical purposes
 // if you modify this, be sure to modify LOG_SEQ_NR_MAX
 #define LOG_SEQ_NR_LIMBS_COUNT 2
 
-#define LOG_SEQ_NR_MAX_BYTES   (LOG_SEQ_NR_LIMBS_COUNT * sizeof(uint64_t))
+#define LOG_SEQ_NR_MAX_BYTES   (LOG_SEQ_NR_LIMBS_COUNT * sizeof(limb_type))
 
 typedef struct log_seq_nr log_seq_nr;
 struct log_seq_nr
 {
-	uint64_t limbs[LOG_SEQ_NR_LIMBS_COUNT];
+	limb_type limbs[LOG_SEQ_NR_LIMBS_COUNT];
 };
 
 #define get_log_seq_nr(val) ((log_seq_nr){.limbs = {val}})
 
 #define LOG_SEQ_NR_MIN ((log_seq_nr){.limbs = {}})
-#define LOG_SEQ_NR_MAX ((log_seq_nr){.limbs = {UINT64_MAX, UINT64_MAX}})
+#define LOG_SEQ_NR_MAX ((log_seq_nr){.limbs = {UNSIGNED_MAX_VALUE_OF(limb_type), UNSIGNED_MAX_VALUE_OF(limb_type)}})
 
 int compare_log_seg_nr(log_seq_nr a, log_seq_nr b);
 

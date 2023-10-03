@@ -14,19 +14,19 @@ int compare_log_seg_nr(log_seq_nr a, log_seq_nr b)
 }
 
 // carry_in must be 0 or 1 only
-static uint64_t add_log_seq_nr_overflow_unsafe_with_carry(log_seq_nr* res, log_seq_nr a, log_seq_nr b, uint64_t carry)
+static limb_type add_log_seq_nr_overflow_unsafe_with_carry(log_seq_nr* res, log_seq_nr a, log_seq_nr b, limb_type carry)
 {
 	carry = !!carry;
 	for(uint32_t i = 0; i < LOG_SEQ_NR_LIMBS_COUNT; i++)
 	{
-		uint64_t carry_in = carry;
+		limb_type carry_in = carry;
 		res->limbs[i] = a.limbs[i] + b.limbs[i] + carry_in;
-		carry = will_unsigned_sum_overflow(uint64_t, a.limbs[i], b.limbs[i]) || will_unsigned_sum_overflow(uint64_t, a.limbs[i] + b.limbs[i], carry_in);
+		carry = will_unsigned_sum_overflow(limb_type, a.limbs[i], b.limbs[i]) || will_unsigned_sum_overflow(limb_type, a.limbs[i] + b.limbs[i], carry_in);
 	}
 	return carry;
 }
 
-uint64_t add_log_seq_nr_overflow_unsafe(log_seq_nr* res, log_seq_nr a, log_seq_nr b)
+limb_type add_log_seq_nr_overflow_unsafe(log_seq_nr* res, log_seq_nr a, log_seq_nr b)
 {
 	return add_log_seq_nr_overflow_unsafe_with_carry(res, a, b, 0);
 }
@@ -41,7 +41,7 @@ static log_seq_nr bitwise_not(log_seq_nr a)
 	return res;
 }
 
-uint64_t sub_log_seq_nr_underflow_unsafe(log_seq_nr* res, log_seq_nr a, log_seq_nr b)
+limb_type sub_log_seq_nr_underflow_unsafe(log_seq_nr* res, log_seq_nr a, log_seq_nr b)
 {
 	log_seq_nr not_b = bitwise_not(b);
 	return add_log_seq_nr_overflow_unsafe_with_carry(res, a, not_b, 1);
