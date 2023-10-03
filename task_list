@@ -1,6 +1,6 @@
  * test case for concurrent log truncation
 
- * allow WALe to have a variable number of bytes in its log_seq_nr representation
  * refactor WALe to use log_seq_nr
- * refactor WALe to start from any log_seq_nr, except 0, which implies read current file
- * refactor WALe to get current file size
+ * add crc32 at the end of master record
+ * add error codes to ensure valid crc32 on master record, and to calculate it on write, and validate it on read
+ * allow changing the buffer block count for WALe in real time
