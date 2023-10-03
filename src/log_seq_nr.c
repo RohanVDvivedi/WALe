@@ -31,7 +31,19 @@ limb_type add_log_seq_nr_overflow_unsafe(log_seq_nr* res, log_seq_nr a, log_seq_
 	return add_log_seq_nr_overflow_unsafe_with_carry(res, a, b, 0);
 }
 
-int add_log_seq_nr(log_seq_nr* res, log_seq_nr a, log_seq_nr b, log_seq_nr max_limit);
+int add_log_seq_nr(log_seq_nr* res, log_seq_nr a, log_seq_nr b, log_seq_nr max_limit)
+{
+	log_seq_nr res_temp;
+	if(add_log_seq_nr_overflow_unsafe(&res_temp, a, b)) // carry out implies overflow
+		return 0;
+
+	// if max_limit is not 0, i.e. max_limit exists, and res_temp >= max_limit, then fail
+	if(compare_log_seg_nr(max_limit, LOG_SEQ_NR_MIN) != 0 && compare_log_seg_nr(res_temp, max_limit) >= 0)
+		return 0;
+
+	(*res) = res_temp;
+	return 1;
+}
 
 static log_seq_nr bitwise_not(log_seq_nr a)
 {
@@ -50,7 +62,7 @@ limb_type sub_log_seq_nr_underflow_unsafe(log_seq_nr* res, log_seq_nr a, log_seq
 int sub_log_seq_nr(log_seq_nr* res, log_seq_nr a, log_seq_nr b)
 {
 	// can not subtract if a < b
-	if(compare(a, b) < 0)
+	if(compare_log_seg_nr(a, b) < 0)
 		return 0;
 
 	sub_log_seq_nr_underflow_unsafe(res, a, b);
@@ -61,6 +73,6 @@ int set_bit_in_log_seq_nr(log_seq_nr* res, uint32_t bit_index);
 
 void serialize_log_seq_nr(void* bytes, uint32_t bytes_size, log_seq_nr l);
 
-log_seq_nr deserialize_le_uint64(const char* bytes, uint32_t bytes_size);
+log_seq_nr deserialize_log_seq_nr(const char* bytes, uint32_t bytes_size);
 
 void print_log_seq_nr(log_seq_nr l);
