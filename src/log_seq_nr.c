@@ -47,7 +47,15 @@ limb_type sub_log_seq_nr_underflow_unsafe(log_seq_nr* res, log_seq_nr a, log_seq
 	return add_log_seq_nr_overflow_unsafe_with_carry(res, a, not_b, 1);
 }
 
-int sub_log_seq_nr(log_seq_nr* res, log_seq_nr a, log_seq_nr b);
+int sub_log_seq_nr(log_seq_nr* res, log_seq_nr a, log_seq_nr b)
+{
+	// can not subtract if a < b
+	if(compare(a, b) < 0)
+		return 0;
+
+	sub_log_seq_nr_underflow_unsafe(res, a, b);
+	return 1;
+}
 
 int set_bit_in_log_seq_nr(log_seq_nr* res, uint32_t bit_index);
 
