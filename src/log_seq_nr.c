@@ -69,10 +69,25 @@ int sub_log_seq_nr(log_seq_nr* res, log_seq_nr a, log_seq_nr b)
 	return 1;
 }
 
-int set_bit_in_log_seq_nr(log_seq_nr* res, uint32_t bit_index);
+int set_bit_in_log_seq_nr(log_seq_nr* res, uint32_t bit_index)
+{
+	if(bit_index >= LOG_SEQ_NR_MAX_BYTES * CHAR_BIT)
+		return 0;
+	res->limbs[bit_index / (sizeof(limb_type) * CHAR_BIT)] |= (((limb_type)1) << (bit_index % (sizeof(limb_type) * CHAR_BIT)));
+	return 1;
+}
 
 void serialize_log_seq_nr(void* bytes, uint32_t bytes_size, log_seq_nr l);
 
 log_seq_nr deserialize_log_seq_nr(const char* bytes, uint32_t bytes_size);
 
-void print_log_seq_nr(log_seq_nr l);
+void print_log_seq_nr(log_seq_nr l)
+{
+	for(uint32_t i = LOG_SEQ_NR_LIMBS_COUNT; i > 0;)
+	{
+		i--;
+		printf("%llu", (unsigned long long int)(l.limbs[i]));
+		if(i > 0)
+			printf(":");
+	}
+}
