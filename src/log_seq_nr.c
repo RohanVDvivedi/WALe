@@ -38,7 +38,7 @@ int add_log_seq_nr(log_seq_nr* res, log_seq_nr a, log_seq_nr b, log_seq_nr max_l
 		return 0;
 
 	// if max_limit is not 0, i.e. max_limit exists, and res_temp >= max_limit, then fail
-	if(compare_log_seg_nr(max_limit, LOG_SEQ_NR_MIN) != 0 && compare_log_seg_nr(res_temp, max_limit) >= 0)
+	if(compare_log_seq_nr(max_limit, LOG_SEQ_NR_MIN) != 0 && compare_log_seq_nr(res_temp, max_limit) >= 0)
 		return 0;
 
 	(*res) = res_temp;
@@ -62,7 +62,7 @@ uint64_t sub_log_seq_nr_underflow_unsafe(log_seq_nr* res, log_seq_nr a, log_seq_
 int sub_log_seq_nr(log_seq_nr* res, log_seq_nr a, log_seq_nr b)
 {
 	// can not subtract if a < b
-	if(compare_log_seg_nr(a, b) < 0)
+	if(compare_log_seq_nr(a, b) < 0)
 		return 0;
 
 	sub_log_seq_nr_underflow_unsafe(res, a, b);
