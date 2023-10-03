@@ -42,33 +42,33 @@ static void suffix_to_release_flushed_log_records_reader_lock(wale* wale_p)
 	on_disk_master_record is just the cached structured copy of the master record on disk
 */
 
-uint64_t get_first_log_sequence_number(wale* wale_p)
+log_seq_nr get_first_log_sequence_number(wale* wale_p)
 {
 	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
-	uint64_t first_log_sequence_number = wale_p->on_disk_master_record.first_log_sequence_number;
+	log_seq_nr first_log_sequence_number = wale_p->on_disk_master_record.first_log_sequence_number;
 
 	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
 	return first_log_sequence_number;
 }
 
-uint64_t get_last_flushed_log_sequence_number(wale* wale_p)
+log_seq_nr get_last_flushed_log_sequence_number(wale* wale_p)
 {
 	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
-	uint64_t last_flushed_log_sequence_number = wale_p->on_disk_master_record.last_flushed_log_sequence_number;
+	log_seq_nr last_flushed_log_sequence_number = wale_p->on_disk_master_record.last_flushed_log_sequence_number;
 
 	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
 	return last_flushed_log_sequence_number;
 }
 
-uint64_t get_check_point_log_sequence_number(wale* wale_p)
+log_seq_nr get_check_point_log_sequence_number(wale* wale_p)
 {
 	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
-	uint64_t check_point_log_sequence_number = wale_p->on_disk_master_record.check_point_log_sequence_number;
+	log_seq_nr check_point_log_sequence_number = wale_p->on_disk_master_record.check_point_log_sequence_number;
 
 	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
