@@ -162,9 +162,10 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 #define PARAM_INVALID            1 // the passed log_sequence number is invalid
 #define ALLOCATION_FAILED        2
 #define READ_IO_ERROR            3
-#define HEADER_CORRUPTED         4 // CRC-32 checksum of log header check failed
-#define LOG_RECORD_CORRUPTED     5 // CRC-32 checksum of log record check failed
-#define MASTER_RECORD_CORRUPTED  6 // CRC-32 checksum of master record check failed
+#define WRITE_IO_ERROR           4
+#define HEADER_CORRUPTED         5 // CRC-32 checksum of log header check failed
+#define LOG_RECORD_CORRUPTED     6 // CRC-32 checksum of log record check failed
+#define MASTER_RECORD_CORRUPTED  7 // CRC-32 checksum of master record check failed
 
 // -------------------------------------------------------------
 // append functions
