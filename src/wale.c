@@ -548,10 +548,10 @@ static uint64_t append_log_record_data(wale* wale_p, uint64_t* append_slot, cons
 	return bytes_written;
 }
 
-uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point)
+log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point)
 {
 	// return value defaults to an INVALID_LOG_SEQUENCE_NUMBER
-	uint64_t log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+	log_seq_nr log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
@@ -563,11 +563,20 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 	{
 		uint64_t file_offset_for_next_log_sequence_number;
 
-		if(wale_p->in_memory_master_record.first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
+		if(compare_log_seq_nr(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
 			file_offset_for_next_log_sequence_number = wale_p->block_io_functions.block_size;
 		else
 		{
-			uint64_t offset_from_first_log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number - wale_p->in_memory_master_record.first_log_sequence_number;
+			uint64_t offset_from_first_log_sequence_number;// = wale_p->in_memory_master_record.next_log_sequence_number - wale_p->in_memory_master_record.first_log_sequence_number;
+			{
+				log_seq_nr temp;
+				if(!sub_log_seq_nr(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.first_log_sequence_number) ||
+					!cast_to_uint64(&offset_from_first_log_sequence_number, temp))
+				{
+					// this must never happen, if it happens just fail
+					goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
+				}
+			}
 
 			// make sure that the file_offset for the next_log_sequence_number will not overflow
 			if(will_unsigned_sum_overflow(uint64_t, offset_from_first_log_sequence_number, wale_p->block_io_functions.block_size))
@@ -591,11 +600,11 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
 
 	// take slot if the next log sequence number is in the append only buffer
-	uint32_t prev_log_record_size;
+	uint32_t prev_log_record_size = 0;
 	log_sequence_number = get_log_sequence_number_for_next_log_record_and_advance_master_record(wale_p, log_record_size, is_check_point, &prev_log_record_size);
 
 	// exit suggesting failure to allocate a log_sequence_number
-	if(log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
+	if(compare_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
 		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
 
 	// compute the total bytes we will write
