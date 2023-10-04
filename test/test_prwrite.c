@@ -79,7 +79,7 @@ int main()
 		return -1;
 	}
 
-	if(!initialize_wale(&walE, 4, (new_file ? get_log_seq_nr(7) : INVALID_LOG_SEQUENCE_NUMBER), NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT))
+	if(!initialize_wale(&walE, 12, (new_file ? get_log_seq_nr(7) : INVALID_LOG_SEQUENCE_NUMBER), NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT))
 	{
 		printf("failed to create wale instance (error = %d on fd = %d)\n", errno, bf.file_descriptor);
 		close_block_file(&bf);
