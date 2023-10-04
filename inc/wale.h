@@ -134,6 +134,8 @@ void deinitialize_wale(wale* wale_p);
 // -------------------------------------------------------------
 // attributes of wale as stored in the on-disk master record
 
+uint32_t get_log_sequence_number_width(wale* wale_p);
+
 log_seq_nr get_first_log_sequence_number(wale* wale_p);
 
 log_seq_nr get_last_flushed_log_sequence_number(wale* wale_p);

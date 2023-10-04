@@ -42,6 +42,17 @@ static void suffix_to_release_flushed_log_records_reader_lock(wale* wale_p)
 	on_disk_master_record is just the cached structured copy of the master record on disk
 */
 
+uint32_t get_log_sequence_number_width(wale* wale_p)
+{
+	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
+
+	uint32_t log_sequence_number_width = wale_p->on_disk_master_record.log_sequence_number_width;
+
+	suffix_to_release_flushed_log_records_reader_lock(wale_p);
+
+	return log_sequence_number_width;
+}
+
 log_seq_nr get_first_log_sequence_number(wale* wale_p)
 {
 	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
