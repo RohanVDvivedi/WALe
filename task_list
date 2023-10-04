@@ -1,4 +1,5 @@
 PICKED
+ * implement check_equals_log_seq_nr, and refactor compare_log_seq_nr -- increases readability
  * add crc32 at the end of master record
  * add error codes to ensure valid crc32 on master record, and to calculate it on write, and validate it on read
  * add a function to get the next_log_sequence_number that will be alloted to the next record
