@@ -75,6 +75,17 @@ log_seq_nr get_check_point_log_sequence_number(wale* wale_p)
 	return check_point_log_sequence_number;
 }
 
+log_seq_nr get_next_log_sequence_number(wale* wale_p)
+{
+	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
+
+	log_seq_nr next_log_sequence_number = wale_p->on_disk_master_record.next_log_sequence_number;
+
+	suffix_to_release_flushed_log_records_reader_lock(wale_p);
+
+	return next_log_sequence_number;
+}
+
 typedef struct log_record_header log_record_header;
 struct log_record_header
 {

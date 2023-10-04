@@ -140,8 +140,10 @@ log_seq_nr get_last_flushed_log_sequence_number(wale* wale_p);
 
 log_seq_nr get_check_point_log_sequence_number(wale* wale_p);
 
+log_seq_nr get_next_log_sequence_number(wale* wale_p);
+
 // -------------------------------------------------------------
-// random reads in log file are required by the below functions
+// random reads in log file are done by the below functions
 // the below functions may only be called for log sequence numbers between on-disk first_log_sequence_number and last_flushed_log_sequence_number
 // and only while both of which are valid (!= INVALID_LOG_SEQUENCE_NUMBER)
 // this implies: you can only read a log_record, if it has been flushed
