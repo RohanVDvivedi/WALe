@@ -26,33 +26,33 @@ void append_test_log()
 	char log_buffer[4096];
 	uint32_t ls = (((unsigned int)rand()) % strlen(NUMBERS));
 	sprintf(log_buffer, LOG_FORMAT, ls, ls, NUMBERS);
-	uint64_t log_sequence_number = append_log_record(&walE, log_buffer, strlen(log_buffer) + 1, 0);
-	printf("log sequence number written = %" PRIu64 " : %s\n\n", log_sequence_number, log_buffer);
+	log_seq_nr log_sequence_number = append_log_record(&walE, log_buffer, strlen(log_buffer) + 1, 0);
+	printf("log sequence number written = "); print_log_seq_nr(log_sequence_number); printf(" : %s\n\n", log_buffer);
 }
 
 void print_all_flushed_logs()
 {
 	int error = 0;
-	uint64_t log_sequence_number = get_first_log_sequence_number(&walE);
-	printf("first_log_sequence_numbers = %"PRIu64"\n", log_sequence_number);
-	printf("check_point_log_sequence_numbers = %"PRIu64"\n", get_check_point_log_sequence_number(&walE));
-	while(log_sequence_number != INVALID_LOG_SEQUENCE_NUMBER)
+	log_seq_nr log_sequence_number = get_first_log_sequence_number(&walE);
+	printf("first_log_sequence_numbers = "); print_log_seq_nr(log_sequence_number); printf("\n");
+	printf("check_point_log_sequence_numbers = "); print_log_seq_nr(get_check_point_log_sequence_number(&walE)); printf("\n");
+	while(compare_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
 	{
 		uint32_t log_record_size;
 		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size, &error);
 		if(error)
 			printf("error = %d\n", error);
-		uint64_t next_log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, &error);
+		log_seq_nr next_log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, &error);
 		if(error)
 			printf("error = %d\n", error);
-		uint64_t prev_log_sequence_number = get_prev_log_sequence_number_of(&walE, log_sequence_number, &error);
+		log_seq_nr prev_log_sequence_number = get_prev_log_sequence_number_of(&walE, log_sequence_number, &error);
 		if(error)
 			printf("error = %d\n", error);
-		printf("(log_sequence_number=%"PRIu64") (prev=%"PRIu64") (next=%"PRIu64") (size = %u): <%s>\n", log_sequence_number, prev_log_sequence_number, next_log_sequence_number, log_record_size, log_record);
+		printf("(log_sequence_number="); print_log_seq_nr(log_sequence_number); printf(") (prev="); print_log_seq_nr(prev_log_sequence_number); printf(") (next="); print_log_seq_nr(next_log_sequence_number); printf(") (size = %u): <%s>\n", log_record_size, log_record);
 		free(log_record);
 		log_sequence_number = next_log_sequence_number;
 	}
-	printf("last_flushed_log_sequence_numbers = %"PRIu64"\n\n", get_last_flushed_log_sequence_number(&walE));
+	printf("last_flushed_log_sequence_numbers = "); print_log_seq_nr(get_last_flushed_log_sequence_number(&walE)); printf("\n\n");
 }
 
 int main()
@@ -66,7 +66,7 @@ int main()
 		return -1;
 	}
 
-	if(!initialize_wale(&walE, (new_file ? 7 : INVALID_LOG_SEQUENCE_NUMBER), NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT))
+	if(!initialize_wale(&walE, 3, (new_file ? get_log_seq_nr(7) : INVALID_LOG_SEQUENCE_NUMBER), NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT))
 	{
 		printf("failed to create wale instance (error = %d on fd = %d)\n", errno, bf.file_descriptor);
 		close_block_file(&bf);
@@ -76,13 +76,13 @@ int main()
 	append_test_log();
 	append_test_log();
 
-	printf("flushed until = %" PRIu64 "\n\n", flush_all_log_records(&walE));
+	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE)); printf("\n\n");
 
 	append_test_log();
 
 	print_all_flushed_logs();
 
-	printf("flushed until = %" PRIu64 "\n\n", flush_all_log_records(&walE));
+	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE)); printf("\n\n"); 
 
 	print_all_flushed_logs();
 
