@@ -162,14 +162,15 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 
 // On a failure of any of the above functions, error will be set to anyone of the below
 // in the increasing order of severity, we consider data corruption as non-recoverable
-#define NO_ERROR                 0
-#define PARAM_INVALID            1 // the passed log_sequence number is invalid
-#define ALLOCATION_FAILED        2
-#define READ_IO_ERROR            3
-#define WRITE_IO_ERROR           4
-#define HEADER_CORRUPTED         5 // CRC-32 checksum of log header check failed
-#define LOG_RECORD_CORRUPTED     6 // CRC-32 checksum of log record check failed
-#define MASTER_RECORD_CORRUPTED  7 // CRC-32 checksum of master record check failed
+#define NO_ERROR                     0
+#define PARAM_INVALID                1 // the passed log_sequence number is invalid
+#define ALLOCATION_FAILED            2
+#define READ_IO_ERROR                3
+#define WRITE_IO_ERROR               4
+#define LOG_SEQ_NR_UNREPRESENTABLE   5 // the log_sequence_numbers on the existing file are too wide to be represented by log_seq_nr
+#define HEADER_CORRUPTED             6 // CRC-32 checksum of log header check failed
+#define LOG_RECORD_CORRUPTED         7 // CRC-32 checksum of log record check failed
+#define MASTER_RECORD_CORRUPTED      8 // CRC-32 checksum of master record check failed
 
 // -------------------------------------------------------------
 // append functions

@@ -24,6 +24,14 @@ int read_master_record(master_record* mr, const block_io_ops* block_io_functions
 
 	// deserialize
 	mr->log_sequence_number_width = deserialize_le_uint32(mr_serial, sizeof(uint32_t));
+
+	if(mr->log_sequence_number_width == 0 || mr->log_sequence_number_width > LOG_SEQ_NR_MAX_BYTES)
+	{
+		(*error) = LOG_SEQ_NR_UNREPRESENTABLEE;
+		free(mr_serial);
+		return 0;
+	}
+
 	mr->first_log_sequence_number = deserialize_log_seq_nr(mr_serial + sizeof(uint32_t), mr->log_sequence_number_width);
 	mr->last_flushed_log_sequence_number = deserialize_log_seq_nr(mr_serial + sizeof(uint32_t) + mr->log_sequence_number_width, mr->log_sequence_number_width);
 	mr->check_point_log_sequence_number = deserialize_log_seq_nr(mr_serial + sizeof(uint32_t) + 2 * mr->log_sequence_number_width, mr->log_sequence_number_width);
