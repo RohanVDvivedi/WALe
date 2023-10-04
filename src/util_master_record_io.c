@@ -8,11 +8,15 @@ int read_master_record(master_record* mr, const block_io_ops* block_io_functions
 {
 	void* mr_serial = aligned_alloc(block_io_functions->block_size, block_io_functions->block_buffer_alignment);
 	if(mr_serial == NULL)
+	{
+		(*error) = ALLOCATION_FAILED;
 		return 0;
+	}
 
 	int io_success = block_io_functions->read_blocks(block_io_functions->block_io_ops_handle, mr_serial, 0, 1);
 	if(!io_success)
 	{
+		(*error) = READ_IO_ERROR;
 		free(mr_serial);
 		return 0;
 	}
@@ -32,7 +36,10 @@ int write_and_flush_master_record(const master_record* mr, const block_io_ops* b
 {
 	void* mr_serial = aligned_alloc(block_io_functions->block_size, block_io_functions->block_buffer_alignment);
 	if(mr_serial == NULL)
+	{
+		(*error) = ALLOCATION_FAILED;
 		return 0;
+	}
 
 	// serialize
 	serialize_le_uint32(mr_serial, sizeof(uint32_t), mr->log_sequence_number_width);
@@ -45,5 +52,12 @@ int write_and_flush_master_record(const master_record* mr, const block_io_ops* b
 						&& block_io_functions->flush_all_writes(block_io_functions->block_io_ops_handle);
 
 	free(mr_serial);
-	return io_success;
+
+	if(!io_success)
+	{
+		(*error) = WRITE_IO_ERROR;
+		return 0;
+	}
+
+	return 1;
 }

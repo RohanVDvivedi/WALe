@@ -38,7 +38,7 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr
 		wale_p->on_disk_master_record.check_point_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 		wale_p->on_disk_master_record.next_log_sequence_number = next_log_sequence_number;
 
-		if(!write_and_flush_master_record(&(wale_p->on_disk_master_record), &(wale_p->block_io_functions)), error)
+		if(!write_and_flush_master_record(&(wale_p->on_disk_master_record), &(wale_p->block_io_functions), error))
 			return 0;
 	}
 

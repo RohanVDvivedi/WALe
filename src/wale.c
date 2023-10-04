@@ -725,8 +725,9 @@ log_seq_nr flush_all_log_records(wale* wale_p)
 	// release the lock
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 
+	int master_record_error = 0;
 	int flush_success = wale_p->block_io_functions.flush_all_writes(wale_p->block_io_functions.block_io_ops_handle) 
-	&& write_and_flush_master_record(&new_on_disk_master_record, &(wale_p->block_io_functions));
+	&& write_and_flush_master_record(&new_on_disk_master_record, &(wale_p->block_io_functions), &master_record_error);
 
 	if(flush_success)
 	{
@@ -783,7 +784,8 @@ int truncate_log_records(wale* wale_p)
 
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 
-	truncated_logs = write_and_flush_master_record(&new_master_record, &(wale_p->block_io_functions));
+	int master_record_io_error = 0;
+	truncated_logs = write_and_flush_master_record(&new_master_record, &(wale_p->block_io_functions), &master_record_io_error);
 
 	if(truncated_logs)
 	{
