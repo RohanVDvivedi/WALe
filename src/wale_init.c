@@ -7,7 +7,7 @@
 
 #include<cutlery_stds.h>
 
-int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count)
+int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, int* error)
 {
 	wale_p->has_internal_lock = (external_lock == NULL);
 
@@ -20,14 +20,17 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr
 
 	if(are_equal_log_seq_nr(next_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 	{
-		if(!read_master_record(&(wale_p->on_disk_master_record), &(wale_p->block_io_functions)))
+		if(!read_master_record(&(wale_p->on_disk_master_record), &(wale_p->block_io_functions), error))
 			return 0;
 	}
 	else
 	{
 		// log_sequence_number width must be in range [1, LOG_SEQ_NR_MAX_BYTES], both inclusive
-		if(log_sequence_number_width == 0 || log_sequence_number_width > LOG_SEQ_NR_MAX_BYTES)
+		if(log_sequence_number_width == 0 || log_sequence_number_width > LOG_SEQ_NR_MAX_BYTES)\
+		{
+			(*error) = PARAM_INVALID;
 			return 0;
+		}
 
 		wale_p->on_disk_master_record.log_sequence_number_width = log_sequence_number_width;
 		wale_p->on_disk_master_record.first_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
@@ -35,7 +38,7 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr
 		wale_p->on_disk_master_record.check_point_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 		wale_p->on_disk_master_record.next_log_sequence_number = next_log_sequence_number;
 
-		if(!write_and_flush_master_record(&(wale_p->on_disk_master_record), &(wale_p->block_io_functions)))
+		if(!write_and_flush_master_record(&(wale_p->on_disk_master_record), &(wale_p->block_io_functions)), error)
 			return 0;
 	}
 
@@ -45,7 +48,10 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr
 	wale_p->buffer_block_count = append_only_block_count;
 
 	if(wale_p->buffer == NULL)
+	{
+		(*error) = ALLOCATION_FAILED;
 		return 0;
+	}
 
 	// there are no log records on the disk, if the first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER
 	if(are_equal_log_seq_nr(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
@@ -76,6 +82,7 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr
 		{
 			if(!wale_p->block_io_functions.read_blocks(wale_p->block_io_functions.block_io_ops_handle, wale_p->buffer, wale_p->buffer_start_block_id, 1))
 			{
+				(*error) = READ_IO_ERROR;
 				free(wale_p->buffer);
 				return 0;
 			}
