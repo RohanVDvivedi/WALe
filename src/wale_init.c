@@ -86,6 +86,9 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr
 	initialize_rwlock(&(wale_p->flushed_log_records_lock), get_wale_lock(wale_p));
 	initialize_rwlock(&(wale_p->append_only_buffer_lock), get_wale_lock(wale_p));
 
+	wale_p->max_limit = LOG_SEQ_NR_MIN;
+	set_bit_in_log_seq_nr(&(wale_p->max_limit), wale_p->in_memory_master_record.log_sequence_number_width * CHAR_BIT);
+
 	return 1;
 }
 

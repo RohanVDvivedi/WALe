@@ -108,6 +108,11 @@ struct wale
 	// --------------------------------------------------------
 	// functions to perform contiguous block io
 	block_io_ops block_io_functions;
+
+	// --------------------------------------------------------
+
+	// no log_sequence_number addition must cross this limit, if it crosses then it is an overflow in all of the system
+	log_seq_nr max_limit;
 };
 
 /*
