@@ -1,6 +1,6 @@
-PICKED
+NEAR FUTURE
+ * allow changing the buffer block count for WALe in real time
+ * add logic to fail appends, truncation and succeed all flushes, when append only buffer count is 0 OR is made 0
 
 FUTURE
  * test case for concurrent log truncation
- * allow changing the buffer block count for WALe in real time
- * add logic to fail appends, truncation and succeed all flushes, when append only buffer count is 0 OR is made 0
