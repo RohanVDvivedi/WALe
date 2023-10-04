@@ -27,7 +27,7 @@ int read_master_record(master_record* mr, const block_io_ops* block_io_functions
 
 	if(mr->log_sequence_number_width == 0 || mr->log_sequence_number_width > LOG_SEQ_NR_MAX_BYTES)
 	{
-		(*error) = LOG_SEQ_NR_UNREPRESENTABLEE;
+		(*error) = LOG_SEQ_NR_UNREPRESENTABLE;
 		free(mr_serial);
 		return 0;
 	}
