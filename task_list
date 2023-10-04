@@ -1,5 +1,4 @@
 PICKED
- * add a function to get the next_log_sequence_number that will be alloted to the next record
 
 FUTURE
  * test case for concurrent log truncation
