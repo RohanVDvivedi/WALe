@@ -161,7 +161,7 @@ log_seq_nr get_next_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 	uint64_t total_size_curr_log_record = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 4 for crc32 of the log record itself and 4 for crc32 of the header
 
 	// the next_log_sequence_number is right after this log_record
-	if(!add_log_seq_nr(&next_log_sequence_number, log_sequence_number, get_log_seq_nr(total_size_curr_log_record), LOG_SEQ_NR_MIN))
+	if(!add_log_seq_nr(&next_log_sequence_number, log_sequence_number, get_log_seq_nr(total_size_curr_log_record), wale_p->max_limit))
 	{
 		(*error) = HEADER_CORRUPTED;
 		goto EXIT;
