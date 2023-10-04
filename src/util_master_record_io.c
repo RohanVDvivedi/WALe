@@ -4,7 +4,7 @@
 
 #include<storage_byte_ordering.h>
 
-int read_master_record(master_record* mr, const block_io_ops* block_io_functions)
+int read_master_record(master_record* mr, const block_io_ops* block_io_functions, int* error)
 {
 	void* mr_serial = aligned_alloc(block_io_functions->block_size, block_io_functions->block_buffer_alignment);
 	if(mr_serial == NULL)
@@ -28,7 +28,7 @@ int read_master_record(master_record* mr, const block_io_ops* block_io_functions
 	return 1;
 }
 
-int write_and_flush_master_record(const master_record* mr, const block_io_ops* block_io_functions)
+int write_and_flush_master_record(const master_record* mr, const block_io_ops* block_io_functions, int* error)
 {
 	void* mr_serial = aligned_alloc(block_io_functions->block_size, block_io_functions->block_buffer_alignment);
 	if(mr_serial == NULL)
