@@ -32,7 +32,7 @@ int main()
 		return -1;
 	}
 
-	if(!initialize_wale(&walE, INVALID_LOG_SEQUENCE_NUMBER, NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT))
+	if(!initialize_wale(&walE, 0, INVALID_LOG_SEQUENCE_NUMBER, NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT))
 	{
 		printf("failed to create wale instance (error = %d on fd = %d)\n", errno, bf.file_descriptor);
 		close_block_file(&bf);
@@ -41,9 +41,9 @@ int main()
 
 	int next_log_to_see[THREAD_COUNT] = {};
 
-	uint64_t log_sequence_number = get_first_log_sequence_number(&walE);
+	log_seq_nr log_sequence_number = get_first_log_sequence_number(&walE);
 	int error = 0;
-	while(log_sequence_number != INVALID_LOG_SEQUENCE_NUMBER)
+	while(compare_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) != 0)
 	{
 		uint32_t log_record_size;
 		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size, &error);
@@ -59,7 +59,7 @@ int main()
 			next_log_to_see[thread_id]++;
 		else
 		{
-			printf("error at log_sequence_number = %"PRIu64" seen -> thread_id=%d log_number=%d\n", log_sequence_number, thread_id, log_number);
+			printf("error at log_sequence_number = "); print_log_seq_nr(log_sequence_number); printf(" seen -> thread_id=%d log_number=%d\n", thread_id, log_number);
 			exit(-1);
 		}
 		log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, &error);
