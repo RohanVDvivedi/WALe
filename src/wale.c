@@ -660,10 +660,10 @@ uint64_t append_log_record(wale* wale_p, const void* log_record, uint32_t log_re
 	return log_sequence_number;
 }
 
-uint64_t flush_all_log_records(wale* wale_p)
+log_seq_nr flush_all_log_records(wale* wale_p)
 {
 	// return value defaults to INVALID_LOG_SEQUENCE_NUMBER
-	uint64_t last_flushed_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+	log_seq_nr last_flushed_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
@@ -753,6 +753,7 @@ int truncate_log_records(wale* wale_p)
 
 	// next_log_sequence_number is not advanced
 	master_record new_master_record = {
+		.log_sequence_number_width = wale_p->in_memory_master_record.log_sequence_number_width,
 		.first_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER,
 		.check_point_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER,
 		.last_flushed_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER,
