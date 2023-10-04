@@ -127,7 +127,7 @@ struct wale
 // else
 //   -> a new wale file is initialized, a brand new master_record is written to disk
 
-int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count);
+int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, int* error);
 
 void deinitialize_wale(wale* wale_p);
 
@@ -144,6 +144,7 @@ log_seq_nr get_check_point_log_sequence_number(wale* wale_p);
 // random reads in log file are required by the below functions
 // the below functions may only be called for log sequence numbers between on-disk first_log_sequence_number and last_flushed_log_sequence_number
 // and only while both of which are valid (!= INVALID_LOG_SEQUENCE_NUMBER)
+// this implies: you can only read a log_record, if it has been flushed
 
 log_seq_nr get_next_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence_number, int* error);
 
@@ -155,15 +156,15 @@ void* get_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_t* 
 // returns 1 if the log_record is not corrupted and passes all the crc checks (crc32 check for header and log_record itself)
 int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_t* log_record_size, int* error);
 
-// On a failure of any of the above 4 functions, error will be set to anyone of the below
+// On a failure of any of the above functions, error will be set to anyone of the below
 // in the increasing order of severity, we consider data corruption as non-recoverable
 #define NO_ERROR                 0
 #define PARAM_INVALID            1 // the passed log_sequence number is invalid
 #define ALLOCATION_FAILED        2
 #define READ_IO_ERROR            3
-#define MASTER_RECORD_CORRUPTED  4 // CRC-32 checksum of master record check failed
-#define HEADER_CORRUPTED         5 // CRC-32 checksum of log header check failed
-#define LOG_RECORD_CORRUPTED     6 // CRC-32 checksum of log record check failed
+#define HEADER_CORRUPTED         4 // CRC-32 checksum of log header check failed
+#define LOG_RECORD_CORRUPTED     5 // CRC-32 checksum of log record check failed
+#define MASTER_RECORD_CORRUPTED  6 // CRC-32 checksum of master record check failed
 
 // -------------------------------------------------------------
 // append functions
