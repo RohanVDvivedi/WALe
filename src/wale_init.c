@@ -18,7 +18,7 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr
 
 	wale_p->block_io_functions = block_io_functions;
 
-	if(compare_log_seq_nr(next_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
+	if(are_equal_log_seq_nr(next_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 	{
 		if(!read_master_record(&(wale_p->on_disk_master_record), &(wale_p->block_io_functions)))
 			return 0;
@@ -48,7 +48,7 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr
 		return 0;
 
 	// there are no log records on the disk, if the first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER
-	if(compare_log_seq_nr(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
+	if(are_equal_log_seq_nr(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 	{
 		wale_p->append_offset = 0;
 		wale_p->buffer_start_block_id = 1;
