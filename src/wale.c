@@ -445,30 +445,38 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 	return valid;
 }
 
-static uint64_t get_log_sequence_number_for_next_log_record_and_advance_master_record(wale* wale_p, uint32_t log_record_size, int is_check_point, uint32_t* prev_log_record_size)
+static log_seq_nr get_log_sequence_number_for_next_log_record_and_advance_master_record(wale* wale_p, uint32_t log_record_size, int is_check_point, uint32_t* prev_log_record_size)
 {
 	// compute the total slot size required by this new log record
 	uint64_t total_log_record_slot_size = HEADER_SIZE + ((uint64_t)log_record_size) + UINT64_C(8); // 8 for crc32 of header and log record itself
 
 	// its log sequence number will simply be the next log sequence number
-	uint64_t log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number;
-
 	// check for overflow of the next_log_sequence_number, upon alloting this slot
 	// we do not advance the master record, if the next_log_sequence_number overflows
-	if(will_unsigned_sum_overflow(uint64_t, log_sequence_number, total_log_record_slot_size))
+	log_seq_nr log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number;
+	log_seq_nr new_next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+	if(!add_log_seq_nr(&(new_next_log_sequence_number), wale_p->in_memory_master_record.next_log_sequence_number, get_log_seq_nr(total_log_record_slot_size), wale_p->max_limit))
 		return INVALID_LOG_SEQUENCE_NUMBER;
 
-	uint64_t new_next_log_sequence_number = log_sequence_number + total_log_record_slot_size;
-
-	// if earlier there were no log records on the disk, then this will be the new first_log_sequence_number
-	if(wale_p->in_memory_master_record.first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
-		wale_p->in_memory_master_record.first_log_sequence_number = log_sequence_number;
-
 	// if there was a last_flushed_log_sequence_number, then return also its size
-	if(wale_p->in_memory_master_record.last_flushed_log_sequence_number != INVALID_LOG_SEQUENCE_NUMBER)
-		(*prev_log_record_size) = (wale_p->in_memory_master_record.next_log_sequence_number - wale_p->in_memory_master_record.last_flushed_log_sequence_number) - HEADER_SIZE - UINT64_C(8);
+	if(compare_log_seq_nr(wale_p->in_memory_master_record.last_flushed_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) != 0)
+	{
+		uint64_t prev_log_record_total_size;
+		{
+			log_seq_nr temp;
+			if(!sub_log_seq_nr(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.last_flushed_log_sequence_number) ||
+				!cast_to_uint64(&prev_log_record_total_size, temp))
+				return INVALID_LOG_SEQUENCE_NUMBER;
+
+		}
+		(*prev_log_record_size) = prev_log_record_total_size - HEADER_SIZE - UINT64_C(8);
+	}
 	else
 		(*prev_log_record_size) = 0;
+
+	// if earlier there were no log records on the disk, then this will be the new first_log_sequence_number
+	if(compare_log_seq_nr(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
+		wale_p->in_memory_master_record.first_log_sequence_number = log_sequence_number;
 
 	// this will also be the new last_flushed_log_sequence_number
 	wale_p->in_memory_master_record.last_flushed_log_sequence_number = log_sequence_number;
