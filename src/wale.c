@@ -127,7 +127,7 @@ log_seq_nr get_next_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 	log_seq_nr next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
 	// if the wale has no records, OR the log_sequence_number is not within first and last_flushed log_sequence_number then fail
-	if(compare_log_seq_nr(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0 ||
+	if(are_equal_log_seq_nr(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
 		compare_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0 || 
 		compare_log_seq_nr(wale_p->on_disk_master_record.last_flushed_log_sequence_number, log_sequence_number) < 0
 		)
@@ -137,7 +137,7 @@ log_seq_nr get_next_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 	}
 
 	// next of last_flushed_log_sequence_number does not exists
-	if(compare_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.last_flushed_log_sequence_number) == 0)
+	if(are_equal_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.last_flushed_log_sequence_number))
 		goto EXIT;
 
 	// calculate the offset in file of the log_record at log_sequence_number
@@ -191,7 +191,7 @@ log_seq_nr get_prev_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 	log_seq_nr prev_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
 	// if the wale has no records, OR the log_sequence_number is not within first and last_flushed log_sequence_number then fail
-	if(compare_log_seq_nr(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0 ||
+	if(are_equal_log_seq_nr(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
 		compare_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0 || 
 		compare_log_seq_nr(wale_p->on_disk_master_record.last_flushed_log_sequence_number, log_sequence_number) < 0
 		)
@@ -201,7 +201,7 @@ log_seq_nr get_prev_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 	}
 
 	// prev of first_log_sequence_number does not exists
-	if(compare_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) == 0)
+	if(are_equal_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number))
 		goto EXIT;
 
 	// calculate the offset in file of the log_record at log_sequence_number
@@ -226,7 +226,7 @@ log_seq_nr get_prev_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 
 	// the prev_log_sequence_number is right before this one
 	// it can not be equal to the total_size_prev_record, else prev_log_sequence_number will become 0, i.e. INVALID_LOG_SEQUENCE_NUMBER
-	if(compare_log_seq_nr(log_sequence_number, get_log_seq_nr(total_size_prev_log_record)) == 0 ||
+	if(are_equal_log_seq_nr(log_sequence_number, get_log_seq_nr(total_size_prev_log_record)) ||
 		!sub_log_seq_nr(&prev_log_sequence_number, log_sequence_number, get_log_seq_nr(total_size_prev_log_record)))
 	{
 		(*error) = HEADER_CORRUPTED;
@@ -257,7 +257,7 @@ void* get_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_t* 
 	void* log_record = NULL;
 
 	// if the wale has no records, OR its log_sequence_number is not between first and last_flushed log_sequence_number
-	if(compare_log_seq_nr(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0 ||
+	if(are_equal_log_seq_nr(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
 		compare_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0 || 
 		compare_log_seq_nr(wale_p->on_disk_master_record.last_flushed_log_sequence_number, log_sequence_number) < 0
 		)
@@ -363,7 +363,7 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 	int valid = 0;
 
 	// if the wale has no records, OR its log_sequence_number is not between first and last_flushed log_sequence_number
-	if(compare_log_seq_nr(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0 ||
+	if(are_equal_log_seq_nr(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
 		compare_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0 || 
 		compare_log_seq_nr(wale_p->on_disk_master_record.last_flushed_log_sequence_number, log_sequence_number) < 0
 		)
@@ -459,7 +459,7 @@ static log_seq_nr get_log_sequence_number_for_next_log_record_and_advance_master
 		return INVALID_LOG_SEQUENCE_NUMBER;
 
 	// if there was a last_flushed_log_sequence_number, then return also its size
-	if(compare_log_seq_nr(wale_p->in_memory_master_record.last_flushed_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) != 0)
+	if(!are_equal_log_seq_nr(wale_p->in_memory_master_record.last_flushed_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 	{
 		uint64_t prev_log_record_total_size;
 		{
@@ -475,7 +475,7 @@ static log_seq_nr get_log_sequence_number_for_next_log_record_and_advance_master
 		(*prev_log_record_size) = 0;
 
 	// if earlier there were no log records on the disk, then this will be the new first_log_sequence_number
-	if(compare_log_seq_nr(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
+	if(are_equal_log_seq_nr(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 		wale_p->in_memory_master_record.first_log_sequence_number = log_sequence_number;
 
 	// this will also be the new last_flushed_log_sequence_number
@@ -563,7 +563,7 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	{
 		uint64_t file_offset_for_next_log_sequence_number;
 
-		if(compare_log_seq_nr(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
+		if(are_equal_log_seq_nr(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 			file_offset_for_next_log_sequence_number = wale_p->block_io_functions.block_size;
 		else
 		{
@@ -604,7 +604,7 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	log_sequence_number = get_log_sequence_number_for_next_log_record_and_advance_master_record(wale_p, log_record_size, is_check_point, &prev_log_record_size);
 
 	// exit suggesting failure to allocate a log_sequence_number
-	if(compare_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
+	if(are_equal_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
 
 	// compute the total bytes we will write
