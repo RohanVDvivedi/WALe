@@ -31,11 +31,11 @@ int append_test_log(int thread_id, int log_number)
 	char log_buffer[4096];
 	uint32_t ls = (((unsigned int)rand()) % strlen(NUMBERS));
 	sprintf(log_buffer, LOG_FORMAT, thread_id, log_number, ls, ls, NUMBERS);
-	uint64_t log_sequence_number = append_log_record(&walE, log_buffer, strlen(log_buffer) + 1, 0);
+	log_seq_nr log_sequence_number = append_log_record(&walE, log_buffer, strlen(log_buffer) + 1, 0);
 	#ifdef DEBUG_PRINT_LOG_BUFFER
-		printf("log_sequence_number = %" PRIu64 " ::: %s\n\n", log_sequence_number, log_buffer);
+		printf("log_sequence_number = "); print_log_seq_nr(log_sequence_number); printf(" ::: %s\n\n", log_buffer);
 	#endif
-	if(log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER)
+	if(compare_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
 	{
 		printf("failed to append to wale\n");
 		exit(-1);
@@ -55,11 +55,11 @@ void* append_logs(void* tid)
 
 		if(log_number % FLUSH_EVERY_LOGS_PER_THREAD == 0)
 		{
-			uint64_t flushed_until = flush_all_log_records(&walE);
+			log_seq_nr flushed_until = flush_all_log_records(&walE);
 			#ifdef DEBUG_PRINT_LOG_BUFFER
-				printf("flushed until = %" PRIu64 " by %d\n\n", flushed_until, thread_id);
+				printf("flushed until = "); print_log_seq_nr(flushed_until); printf(" by %d\n\n", thread_id);
 			#endif
-			if(flushed_until == INVALID_LOG_SEQUENCE_NUMBER)
+			if(compare_log_seq_nr(flushed_until, INVALID_LOG_SEQUENCE_NUMBER) == 0)
 			{
 				printf("failed to flush logs from wale\n");
 				exit(-1);
@@ -79,7 +79,7 @@ int main()
 		return -1;
 	}
 
-	if(!initialize_wale(&walE, (new_file ? 7 : INVALID_LOG_SEQUENCE_NUMBER), NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT))
+	if(!initialize_wale(&walE, 4, (new_file ? get_log_seq_nr(7) : INVALID_LOG_SEQUENCE_NUMBER), NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT))
 	{
 		printf("failed to create wale instance (error = %d on fd = %d)\n", errno, bf.file_descriptor);
 		close_block_file(&bf);
@@ -99,7 +99,7 @@ int main()
 	wait_for_all_executor_workers_to_complete(exe);
 	delete_executor(exe);
 
-	printf("flushed until = %" PRIu64 "\n\n", flush_all_log_records(&walE));
+	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE)); printf("\n\n");
 
 	deinitialize_wale(&walE);
 

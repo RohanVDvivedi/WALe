@@ -82,7 +82,7 @@ int main()
 
 	print_all_flushed_logs();
 
-	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE)); printf("\n\n"); 
+	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE)); printf("\n\n");
 
 	print_all_flushed_logs();
 
