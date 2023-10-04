@@ -22,6 +22,10 @@ int read_master_record(master_record* mr, const block_io_ops* block_io_functions
 		return 0;
 	}
 
+	// calculate crc32 for master record
+	uint32_t calculated_crc32 = crc32_init();
+	calculated_crc32 = crc32_util(calculated_crc32, mr_serial, sizeof(uint32_t) + 4 * mr->log_sequence_number_width);
+
 	// deserialize
 	mr->log_sequence_number_width = deserialize_le_uint32(mr_serial, sizeof(uint32_t));
 	mr->first_log_sequence_number = deserialize_log_seq_nr(mr_serial + sizeof(uint32_t), mr->log_sequence_number_width);
@@ -29,7 +33,16 @@ int read_master_record(master_record* mr, const block_io_ops* block_io_functions
 	mr->check_point_log_sequence_number = deserialize_log_seq_nr(mr_serial + sizeof(uint32_t) + 2 * mr->log_sequence_number_width, mr->log_sequence_number_width);
 	mr->next_log_sequence_number = deserialize_log_seq_nr(mr_serial + sizeof(uint32_t) + 3 * mr->log_sequence_number_width, mr->log_sequence_number_width);
 
+	uint32_t parsed_crc32 = deserialize_le_uint32(mr_serial + sizeof(uint32_t) + 4 * mr->log_sequence_number_width, sizeof(uint32_t));
+
 	free(mr_serial);
+
+	if(calculated_crc32 != parsed_crc32)
+	{
+		(*error) = MASTER_RECORD_CORRUPTED;
+		return 0;
+	}
+
 	return 1;
 }
 
