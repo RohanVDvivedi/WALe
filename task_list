@@ -1,6 +1,9 @@
- * test case for concurrent log truncation
-
+PICKED
  * add crc32 at the end of master record
  * add error codes to ensure valid crc32 on master record, and to calculate it on write, and validate it on read
- * allow changing the buffer block count for WALe in real time
  * add a function to get the next_log_sequence_number that will be alloted to the next record
+
+FUTURE
+ * test case for concurrent log truncation
+ * allow changing the buffer block count for WALe in real time
+ * add logic to fail appends, truncation and succeed all flushes, when append only buffer count is 0 OR is made 0
