@@ -36,7 +36,7 @@ void print_all_flushed_logs()
 	log_seq_nr log_sequence_number = get_first_log_sequence_number(&walE);
 	printf("first_log_sequence_numbers = "); print_log_seq_nr(log_sequence_number); printf("\n");
 	printf("check_point_log_sequence_numbers = "); print_log_seq_nr(get_check_point_log_sequence_number(&walE)); printf("\n");
-	while(compare_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
+	while(compare_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) != 0)
 	{
 		uint32_t log_record_size;
 		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size, &error);
