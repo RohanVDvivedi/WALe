@@ -24,6 +24,9 @@ struct log_seq_nr
 
 int compare_log_seq_nr(log_seq_nr a, log_seq_nr b);
 
+// check if two log_seq_nr-s are equal
+int are_equal_log_seq_nr(log_seq_nr a, log_seq_nr b);
+
 // adds 2 log_seq_nr-s, does not check for overflow, returns carry bit
 uint64_t add_log_seq_nr_overflow_unsafe(log_seq_nr* res, log_seq_nr a, log_seq_nr b);
 

@@ -13,6 +13,11 @@ int compare_log_seq_nr(log_seq_nr a, log_seq_nr b)
 	return res;
 }
 
+int are_equal_log_seq_nr(log_seq_nr a, log_seq_nr b)
+{
+	return compare_log_seq_nr(a, b) == 0;
+}
+
 // carry_in must be 0 or 1 only
 static uint64_t add_log_seq_nr_overflow_unsafe_with_carry(log_seq_nr* res, log_seq_nr a, log_seq_nr b, uint64_t carry)
 {
