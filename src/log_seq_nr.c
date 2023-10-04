@@ -134,11 +134,16 @@ int cast_to_uint64(uint64_t* value, log_seq_nr a)
 
 void print_log_seq_nr(log_seq_nr l)
 {
+	int to_print = 0;
 	for(uint32_t i = LOG_SEQ_NR_LIMBS_COUNT; i > 0;)
 	{
 		i--;
-		printf("%llu", (unsigned long long int)(l.limbs[i]));
-		if(i > 0)
-			printf(":");
+		to_print = to_print || (!!(l.limbs[i]));
+		if(to_print || (i == 0))
+		{
+			printf("%llu", (unsigned long long int)(l.limbs[i]));
+			if(i > 0)
+				printf(":");
+		}
 	}
 }
