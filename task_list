@@ -1,6 +1,5 @@
  * test case for concurrent log truncation
 
- * refactor WALe to use log_seq_nr
  * add crc32 at the end of master record
  * add error codes to ensure valid crc32 on master record, and to calculate it on write, and validate it on read
  * allow changing the buffer block count for WALe in real time
