@@ -76,7 +76,7 @@ struct wale
 	int major_scroll_error : 1;
 
 	// wait on this condition variable for the next scroll after which append_only_buffer contains the first byte for in_memory_master_record.next_log_sequence_number
-	// protected by global lock (get_wale_lock(wale* wale_p))
+	// protected by global lock (get_wale_lock(wale_p))
 	pthread_cond_t wait_for_scroll;
 
 	// --------------------------------------------------------
@@ -97,17 +97,17 @@ struct wale
 	rwlock append_only_buffer_lock;
 
 	// number of blocks pointed to by buffer, this is fixed for most part
-	// protected by global lock (get_wale_lock(wale* wale_p))
+	// protected by global lock (get_wale_lock(wale_p))
 	uint64_t buffer_block_count;
 
 	// buffer_start_block_id is the first block pointed to by the buffer
 	// the first byte in the buffer is at buffer_start_block_id * block_io_functions.block_size
-	// protected by global lock (get_wale_lock(wale* wale_p))
+	// protected by global lock (get_wale_lock(wale_p))
 	uint64_t buffer_start_block_id;
 
 	// append_offset is the number of bytes that is filled in the buffer
 	// the next byte to be appended goes at append_offset
-	// protected by global lock (get_wale_lock(wale* wale_p))
+	// protected by global lock (get_wale_lock(wale_p))
 	uint64_t append_offset;
 
 	// --------------------------------------------------------
