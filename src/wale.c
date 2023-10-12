@@ -704,6 +704,7 @@ log_seq_nr flush_all_log_records(wale* wale_p)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
 	// get exclusive_lock on the append_only_buffer
+	// this waits only until, all append_log_record calls that were allotted be written to buffer (they may scroll if they will)
 	exclusive_lock(&(wale_p->append_only_buffer_lock), BLOCKING);
 
 	// we can not flush if there has been a major scroll error
@@ -740,7 +741,7 @@ log_seq_nr flush_all_log_records(wale* wale_p)
 
 	// As you can predict/observe/analyze, now from here on, other append only writers, scrollers and flushes can proceed with their task concurrently with this one
 
-	// release the lock
+	// release the global lock
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 
 	int master_record_error = 0;
@@ -800,8 +801,6 @@ int truncate_log_records(wale* wale_p)
 	// now we also need write lock on the on_disk_master_record, so that we can update it, along with the actual ondisk master record
 	write_lock(&(wale_p->flushed_log_records_lock), BLOCKING);
 
-	pthread_mutex_unlock(get_wale_lock(wale_p));
-
 	int master_record_io_error = 0;
 	truncated_logs = write_and_flush_master_record(&new_master_record, &(wale_p->block_io_functions), &master_record_io_error);
 
@@ -810,17 +809,10 @@ int truncate_log_records(wale* wale_p)
 		// we can update the on_disk_master_record here since, we have write lock on flushed_log_records_lock
 		wale_p->on_disk_master_record = new_master_record;
 
-		// we can update the buffer_start_block_id here since, we have write lock on append_only_buffer_lock
-		wale_p->buffer_start_block_id = 1;
-	}
-
-	pthread_mutex_lock(get_wale_lock(wale_p));
-
-	if(truncated_logs)
-	{
-		// below attributes are protected by the global mutex, hence must be updated within the mutex
+		// below attributes are protected by the global mutex, hence must be updated with the global mutex held
 		wale_p->in_memory_master_record = new_master_record;
 		wale_p->append_offset = new_append_offset;
+		wale_p->buffer_start_block_id = 1;
 	}
 
 	// release both the exclusive locks
