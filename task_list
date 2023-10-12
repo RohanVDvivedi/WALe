@@ -1,3 +1,9 @@
+REFACTOR & THINK ABOUT LOCKING RULES
+ * logically think what global lock protects, what append only buffer lock protects and what flushed_log_records_lock protects.
+ * there is a lot of misconception about hat protects what, read again, analyze and comment well in WALe struct
+ * check performance
+ * make sure all functions in wale.c align to the appropriate lock usage
+
 NEAR FUTURE
  * allow changing the buffer block count for WALe in real time
  * add logic to fail appends, truncation and succeed all flushes, when append only buffer count is 0 OR is made 0
