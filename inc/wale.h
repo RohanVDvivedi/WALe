@@ -68,24 +68,22 @@ struct wale
 
 	// any updates to the master record are made here in memory, this master record must be flushed for changes to be persistent
 	// any append_log_record will diverge the in_memory_master_record, from the on_disk_master_record
+	// protected by global lock
 	master_record in_memory_master_record;
-
-	// append_offset is the number of bytes that is filled in the buffer
-	// the next byte to be appended goes at append_offset
-	uint64_t append_offset;
 
 	// this bit will be set, when an unrecoverable scroll error occurs, this error needs a restart of your system
 	// which will also mean a loss of certain wal log records 
 	int major_scroll_error : 1;
 
 	// wait on this condition variable for the next scroll after which append_only_buffer contains the first byte for in_memory_master_record.next_log_sequence_number
+	// protected by global lock (get_wale_lock(wale* wale_p))
 	pthread_cond_t wait_for_scroll;
 
 	// --------------------------------------------------------
 	// cached structured copy of on disk persistent state of the wale's master record
 	master_record on_disk_master_record;
 
-	// below reader writer lock protects the on_disk_master_record and the flushed logs on the disk (which are considered read-only for most part)
+	// below reader writer lock protects the on_disk_master_record and the flushed logs on the disk (which are considered read-only)
 	rwlock flushed_log_records_lock;
 
 	// --------------------------------------------------------
@@ -95,15 +93,22 @@ struct wale
 	// total memory at buffer = buffer_block_count * block_io_functions.block_size
 	void* buffer;
 
+	// a shared/exclusive lock for protecting only the contents of the append only buffer
+	rwlock append_only_buffer_lock;
+
 	// number of blocks pointed to by buffer, this is fixed for most part
+	// protected by global lock (get_wale_lock(wale* wale_p))
 	uint64_t buffer_block_count;
 
 	// buffer_start_block_id is the first block pointed to by the buffer
 	// the first byte in the buffer is at buffer_start_block_id * block_io_functions.block_size
+	// protected by global lock (get_wale_lock(wale* wale_p))
 	uint64_t buffer_start_block_id;
 
-	// a shared/exclusive lock for protecting the contents of the append only buffer
-	rwlock append_only_buffer_lock;
+	// append_offset is the number of bytes that is filled in the buffer
+	// the next byte to be appended goes at append_offset
+	// protected by global lock (get_wale_lock(wale* wale_p))
+	uint64_t append_offset;
 
 	// --------------------------------------------------------
 	// functions to perform contiguous block io
