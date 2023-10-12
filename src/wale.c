@@ -530,7 +530,7 @@ static uint64_t append_log_record_data(wale* wale_p, uint64_t* append_slot, cons
 		// if append slot is at the end of the wale's append only buffer, then attempt to scroll
 		if((*append_slot) == wale_p->buffer_block_count * wale_p->block_io_functions.block_size)
 		{
-			// scrolling needs global lock
+			// scrolling needs global lock and an exclusive lock on the wale_p->append_only_buffer_lock
 			pthread_mutex_lock(get_wale_lock(wale_p));
 
 			// upgrade your shared lock on the append_only_buffer to exclusive lock while we scroll
@@ -578,9 +578,6 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
-	// share lock the append_only_buffer, snce we are reading the buffer_start_block_id
-	shared_lock(&(wale_p->append_only_buffer_lock), WRITE_PREFERRING, BLOCKING);
-
 	while(1)
 	{
 		uint64_t file_offset_for_next_log_sequence_number;
@@ -596,30 +593,26 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 					!cast_to_uint64(&offset_from_first_log_sequence_number, temp))
 				{
 					// this must never happen, if it happens just fail
-					goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
+					goto EXIT;
 				}
 			}
 
 			// make sure that the file_offset for the next_log_sequence_number will not overflow
 			if(will_unsigned_sum_overflow(uint64_t, offset_from_first_log_sequence_number, wale_p->block_io_functions.block_size))
-				goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
+				goto EXIT;
 
 			file_offset_for_next_log_sequence_number = offset_from_first_log_sequence_number + wale_p->block_io_functions.block_size;
 		}
 
 		if(!is_file_offset_within_append_only_buffer(wale_p, file_offset_for_next_log_sequence_number)
 			&& !wale_p->major_scroll_error)
-		{
-			shared_unlock(&(wale_p->append_only_buffer_lock));
 			pthread_cond_wait(&(wale_p->wait_for_scroll), get_wale_lock(wale_p));
-			shared_lock(&(wale_p->append_only_buffer_lock), WRITE_PREFERRING, BLOCKING);
-		}
 		else
 			break;
 	}
 
 	if(wale_p->major_scroll_error)
-		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
+		goto EXIT;
 
 	// take slot if the next log sequence number is in the append only buffer
 	uint32_t prev_log_record_size = 0;
@@ -627,7 +620,7 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 
 	// exit suggesting failure to allocate a log_sequence_number
 	if(are_equal_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
-		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
+		goto EXIT;
 
 	// compute the total bytes we will write
 	uint64_t total_bytes_to_write = HEADER_SIZE + ((uint64_t)log_record_size) + UINT64_C(8); // 8 for the 2 crc32 values of the header and the log record each
@@ -638,32 +631,35 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	// advance the append_offset of the append only buffer
 	wale_p->append_offset = min(wale_p->append_offset + total_bytes_to_write, wale_p->buffer_block_count * wale_p->block_io_functions.block_size);
 
+	// share lock the append_only_buffer, inorder to write data into it at the wale_p->append_offset
+	shared_lock(&(wale_p->append_only_buffer_lock), WRITE_PREFERRING, BLOCKING);
+
 	// we have the slot in the append only buffer, and a log_sequence_number, now we don't need the global lock
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 
 	// serialize log_record_size as a byte array ordered in little endian format
-	char size_in_bytes[4];
+	char bytes_for_uint32[4];
 	uint32_t calculated_crc32 = crc32_init();
 
 	int scroll_error = 0;
 
 	// write prev_log_record_size
-	serialize_le_uint32(size_in_bytes, sizeof(uint32_t), prev_log_record_size);
-	calculated_crc32 = crc32_util(calculated_crc32, size_in_bytes, 4);
-	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
+	serialize_le_uint32(bytes_for_uint32, sizeof(uint32_t), prev_log_record_size);
+	calculated_crc32 = crc32_util(calculated_crc32, bytes_for_uint32, 4);
+	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, &scroll_error);
 	if(scroll_error)
 		goto SCROLL_FAIL;
 
 	// write log_record_size
-	serialize_le_uint32(size_in_bytes, sizeof(uint32_t), log_record_size);
-	calculated_crc32 = crc32_util(calculated_crc32, size_in_bytes, 4);
-	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
+	serialize_le_uint32(bytes_for_uint32, sizeof(uint32_t), log_record_size);
+	calculated_crc32 = crc32_util(calculated_crc32, bytes_for_uint32, 4);
+	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, &scroll_error);
 	if(scroll_error)
 		goto SCROLL_FAIL;
 
 	// write calculated_crc32
-	serialize_le_uint32(size_in_bytes, sizeof(uint32_t), calculated_crc32);
-	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
+	serialize_le_uint32(bytes_for_uint32, sizeof(uint32_t), calculated_crc32);
+	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, &scroll_error);
 	if(scroll_error)
 		goto SCROLL_FAIL;
 
@@ -677,8 +673,8 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 		goto SCROLL_FAIL;
 
 	// write calculated_crc32
-	serialize_le_uint32(size_in_bytes, sizeof(uint32_t), calculated_crc32);
-	append_log_record_data(wale_p, &append_slot, size_in_bytes, 4, &total_bytes_to_write, &scroll_error);
+	serialize_le_uint32(bytes_for_uint32, sizeof(uint32_t), calculated_crc32);
+	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, &scroll_error);
 	if(scroll_error)
 		goto SCROLL_FAIL;
 
@@ -689,10 +685,10 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	if(scroll_error)
 		log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
-	RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT:;
-	// share lock the append_only_buffer
+	// share_unlock the append_only_buffer
 	shared_unlock(&(wale_p->append_only_buffer_lock));
 
+	EXIT:;
 	if(wale_p->has_internal_lock)
 		pthread_mutex_unlock(get_wale_lock(wale_p));
 
