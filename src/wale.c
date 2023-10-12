@@ -578,6 +578,10 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
+	// share lock the append_only_buffer, inorder to write data into it at the wale_p->append_offset
+	// we take this lock this early, because we do not want anyone to scroll the append only buffer, after we get a slot in the append only buffer
+	shared_lock(&(wale_p->append_only_buffer_lock), WRITE_PREFERRING, BLOCKING);
+
 	while(1)
 	{
 		uint64_t file_offset_for_next_log_sequence_number;
@@ -593,26 +597,30 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 					!cast_to_uint64(&offset_from_first_log_sequence_number, temp))
 				{
 					// this must never happen, if it happens just fail
-					goto EXIT;
+					goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
 				}
 			}
 
 			// make sure that the file_offset for the next_log_sequence_number will not overflow
 			if(will_unsigned_sum_overflow(uint64_t, offset_from_first_log_sequence_number, wale_p->block_io_functions.block_size))
-				goto EXIT;
+				goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
 
 			file_offset_for_next_log_sequence_number = offset_from_first_log_sequence_number + wale_p->block_io_functions.block_size;
 		}
 
 		if(!is_file_offset_within_append_only_buffer(wale_p, file_offset_for_next_log_sequence_number)
 			&& !wale_p->major_scroll_error)
+		{
+			shared_unlock(&(wale_p->append_only_buffer_lock));
 			pthread_cond_wait(&(wale_p->wait_for_scroll), get_wale_lock(wale_p));
+			shared_lock(&(wale_p->append_only_buffer_lock), WRITE_PREFERRING, BLOCKING);
+		}
 		else
 			break;
 	}
 
 	if(wale_p->major_scroll_error)
-		goto EXIT;
+		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
 
 	// take slot if the next log sequence number is in the append only buffer
 	uint32_t prev_log_record_size = 0;
@@ -620,7 +628,7 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 
 	// exit suggesting failure to allocate a log_sequence_number
 	if(are_equal_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
-		goto EXIT;
+		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
 
 	// compute the total bytes we will write
 	uint64_t total_bytes_to_write = HEADER_SIZE + ((uint64_t)log_record_size) + UINT64_C(8); // 8 for the 2 crc32 values of the header and the log record each
@@ -630,9 +638,6 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 
 	// advance the append_offset of the append only buffer
 	wale_p->append_offset = min(wale_p->append_offset + total_bytes_to_write, wale_p->buffer_block_count * wale_p->block_io_functions.block_size);
-
-	// share lock the append_only_buffer, inorder to write data into it at the wale_p->append_offset
-	shared_lock(&(wale_p->append_only_buffer_lock), WRITE_PREFERRING, BLOCKING);
 
 	// we have the slot in the append only buffer, and a log_sequence_number, now we don't need the global lock
 	pthread_mutex_unlock(get_wale_lock(wale_p));
@@ -685,6 +690,7 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	if(scroll_error)
 		log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
+	RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT:;
 	// share_unlock the append_only_buffer
 	shared_unlock(&(wale_p->append_only_buffer_lock));
 
