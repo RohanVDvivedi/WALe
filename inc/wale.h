@@ -183,7 +183,7 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 // -------------------------------------------------------------
 
 // update the number of blocks in the append only buffer at run time
-int modify_append_only_buffer_block_count(wale* wale_p, uint64_t buffer_block_count);
+int modify_append_only_buffer_block_count(wale* wale_p, uint64_t buffer_block_count, int* error);
 
 // -------------------------------------------------------------
 // writer functions of WALe

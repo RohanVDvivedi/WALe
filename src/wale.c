@@ -467,23 +467,22 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 	return valid;
 }
 
-int modify_append_only_buffer_block_count(wale* wale_p, uint64_t buffer_block_count)
+int modify_append_only_buffer_block_count(wale* wale_p, uint64_t buffer_block_count, int* error)
 {
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
 	exclusive_lock(&(wale_p->append_only_buffer_lock), BLOCKING);
 
-	// cache old buffer_block_count value
-	uint64_t old_buffer_block_count = wale_p->buffer_block_count;
-
-	int res = resize_append_only_buffer(wale_p, buffer_block_count);
+	int res = resize_append_only_buffer(wale_p, buffer_block_count, error);
 
 	// if the buffer_block_count increased, i.e. now there is more space on it -> this is equivalent to a scroll
 	// else if the buffer_block_count became 0 i.e. now wale is read only, then wake up anyone who is waiting for a scroll to let then know about it
+	// there is also possibility that resize_append_only_buffer, scrolled the buffer (if the buffer size is to be decreased)
+	// so in any case scroll the buffer
 	// to be on safe side, we wake up all threads waiting for scroll, to inform them about the change in buffer_block_count
-	if(old_buffer_block_count != wale_p->buffer_block_count)
-		pthread_cond_broadcast(&(wale_p->wait_for_scroll));
+	// resizing the append only buffer is expectd to an infrequent operation, hence hopefully waking up all the threads is just fine
+	pthread_cond_broadcast(&(wale_p->wait_for_scroll));
 
 	exclusive_unlock(&(wale_p->append_only_buffer_lock));
 

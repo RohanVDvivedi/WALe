@@ -18,6 +18,6 @@ int is_file_offset_within_append_only_buffer(wale* wale_p, uint64_t file_offset)
 // returns 1, if the append_only_buffer was resized
 // returns 0 on a failure
 // it may call scroll_append_only_buffer, i.e. it also may result in unlocking of the global mutex
-int resize_append_only_buffer(wale* wale_p, uint64_t buffer_block_count);
+int resize_append_only_buffer(wale* wale_p, uint64_t buffer_block_count, int* error);
 
 #endif
