@@ -572,6 +572,9 @@ static uint64_t append_log_record_data(wale* wale_p, uint64_t* append_slot, cons
 
 log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point, int* error)
 {
+	// initialize error to no error
+	(*error) = NO_ERROR;
+
 	// return value defaults to an INVALID_LOG_SEQUENCE_NUMBER
 	log_seq_nr log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
@@ -701,8 +704,11 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	return log_sequence_number;
 }
 
-log_seq_nr flush_all_log_records(wale* wale_p)
+log_seq_nr flush_all_log_records(wale* wale_p, int* error)
 {
+	// initialize error to no error
+	(*error) = NO_ERROR;
+
 	// return value defaults to INVALID_LOG_SEQUENCE_NUMBER
 	log_seq_nr last_flushed_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
@@ -775,8 +781,12 @@ log_seq_nr flush_all_log_records(wale* wale_p)
 	return last_flushed_log_sequence_number;
 }
 
-int truncate_log_records(wale* wale_p)
+int truncate_log_records(wale* wale_p, int* error)
 {
+	// initialize error to no error
+	(*error) = NO_ERROR;
+
+	// return value, suggesting if the log was truncated
 	int truncated_logs = 0;
 
 	if(wale_p->has_internal_lock)
