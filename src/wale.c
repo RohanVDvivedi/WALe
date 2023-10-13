@@ -723,6 +723,7 @@ log_seq_nr flush_all_log_records(wale* wale_p, int* error)
 	if(wale_p->major_scroll_error)
 	{
 		// release exclusive lock and exit
+		(*error) = MAJOR_SCROLL_ERROR;
 		exclusive_unlock(&(wale_p->append_only_buffer_lock));
 		goto EXIT;
 	}
@@ -734,6 +735,8 @@ log_seq_nr flush_all_log_records(wale* wale_p, int* error)
 	if(!scroll_success)
 	{
 		wale_p->major_scroll_error = 1;
+		(*error) = MAJOR_SCROLL_ERROR;
+		exclusive_unlock(&(wale_p->append_only_buffer_lock));
 		goto EXIT;
 	}
 
@@ -756,9 +759,8 @@ log_seq_nr flush_all_log_records(wale* wale_p, int* error)
 	// release the global lock
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 
-	int master_record_error = 0;
 	int flush_success = wale_p->block_io_functions.flush_all_writes(wale_p->block_io_functions.block_io_ops_handle) 
-	&& write_and_flush_master_record(&new_on_disk_master_record, &(wale_p->block_io_functions), &master_record_error);
+	&& write_and_flush_master_record(&new_on_disk_master_record, &(wale_p->block_io_functions), error);
 
 	if(flush_success)
 	{
@@ -767,6 +769,11 @@ log_seq_nr flush_all_log_records(wale* wale_p, int* error)
 
 		// also set the return value
 		last_flushed_log_sequence_number = new_on_disk_master_record.last_flushed_log_sequence_number;
+	}
+	else
+	{
+		if(*error == NO_ERROR)
+			(*error) = WRITE_IO_ERROR;
 	}
 
 	pthread_mutex_lock(get_wale_lock(wale_p));
