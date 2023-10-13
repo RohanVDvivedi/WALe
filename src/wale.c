@@ -474,7 +474,16 @@ int modify_append_only_buffer_block_count(wale* wale_p, uint64_t buffer_block_co
 
 	exclusive_lock(&(wale_p->append_only_buffer_lock), BLOCKING);
 
+	// cache old buffer_block_count value
+	uint64_t old_buffer_block_count = wale_p->buffer_block_count;
+
 	int res = resize_append_only_buffer(wale_p, buffer_block_count);
+
+	// if the buffer_block_count increased, i.e. now there is more space on it -> this is equivalent to a scroll
+	// else if the buffer_block_count became 0 i.e. now wale is read only, then wake up anyone who is waiting for a scroll to let then know about it
+	// to be on safe side, we wake up all threads waiting for scroll, to inform them about the change in buffer_block_count
+	if(old_buffer_block_count != wale_p->buffer_block_count)
+		pthread_cond_broadcast(&(wale_p->wait_for_scroll));
 
 	exclusive_unlock(&(wale_p->append_only_buffer_lock));
 
