@@ -467,6 +467,25 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 	return valid;
 }
 
+int modify_append_only_buffer_block_count(wale* wale_p, uint64_t buffer_block_count)
+{
+	int res = 0;
+
+	if(wale_p->has_internal_lock)
+		pthread_mutex_lock(get_wale_lock(wale_p));
+
+	exclusive_lock(&(wale_p->append_only_buffer_lock), BLOCKING);
+
+	// TODO
+
+	exclusive_unlock(&(wale_p->append_only_buffer_lock));
+
+	if(wale_p->has_internal_lock)
+		pthread_mutex_unlock(get_wale_lock(wale_p));
+
+	return res;
+}
+
 static log_seq_nr get_log_sequence_number_for_next_log_record_and_advance_master_record(wale* wale_p, uint32_t log_record_size, int is_check_point, uint32_t* prev_log_record_size, int* error)
 {
 	// compute the total slot size required by this new log record
