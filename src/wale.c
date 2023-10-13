@@ -584,11 +584,18 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
+	// if the buffer block count is 0, then WALe is not in writable state
+	if(wale_p->buffer_block_count == 0)
+	{
+		(*error) = ZERO_BUFFER_BLOCK_COUNT;
+		goto EXIT;
+	}
+
 	// share lock the append_only_buffer, inorder to write data into it at the wale_p->append_offset
 	// we take this lock this early, because we do not want anyone to scroll the append only buffer, after we get a slot in the append only buffer
 	shared_lock(&(wale_p->append_only_buffer_lock), WRITE_PREFERRING, BLOCKING);
 
-	while(1)
+	while(wale_p->buffer_block_count > 0)
 	{
 		uint64_t file_offset_for_next_log_sequence_number;
 
@@ -614,7 +621,7 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 			file_offset_for_next_log_sequence_number = offset_from_first_log_sequence_number + wale_p->block_io_functions.block_size;
 		}
 
-		if(!wale_p->major_scroll_error &&
+		if(!wale_p->major_scroll_error && wale_p->buffer_block_count > 0 &&
 			!is_file_offset_within_append_only_buffer(wale_p, file_offset_for_next_log_sequence_number))
 		{
 			shared_unlock(&(wale_p->append_only_buffer_lock));
@@ -623,6 +630,13 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 		}
 		else
 			break;
+	}
+
+	// if the buffer block count is 0, then WALe is not in writable state
+	if(wale_p->buffer_block_count == 0)
+	{
+		(*error) = ZERO_BUFFER_BLOCK_COUNT;
+		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
 	}
 
 	if(wale_p->major_scroll_error)
@@ -701,7 +715,7 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	// share_unlock the append_only_buffer
 	shared_unlock(&(wale_p->append_only_buffer_lock));
 
-	//EXIT:;
+	EXIT:;
 	if(wale_p->has_internal_lock)
 		pthread_mutex_unlock(get_wale_lock(wale_p));
 
@@ -718,6 +732,13 @@ log_seq_nr flush_all_log_records(wale* wale_p, int* error)
 
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
+
+	// if the buffer block count is 0, then WALe is not in writable state
+	if(wale_p->buffer_block_count == 0)
+	{
+		(*error) = ZERO_BUFFER_BLOCK_COUNT;
+		goto EXIT;
+	}
 
 	// get exclusive_lock on the append_only_buffer
 	// this waits only until, all append_log_record calls that were allotted be written to buffer (they may scroll if they will)
