@@ -469,14 +469,12 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 
 int modify_append_only_buffer_block_count(wale* wale_p, uint64_t buffer_block_count)
 {
-	int res = 0;
-
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
 	exclusive_lock(&(wale_p->append_only_buffer_lock), BLOCKING);
 
-	// TODO
+	int res = resize_append_only_buffer(wale_p, buffer_block_count);
 
 	exclusive_unlock(&(wale_p->append_only_buffer_lock));
 
