@@ -54,7 +54,7 @@ void* append_logs(void* tid)
 
 		#ifdef TEST_MODIFY_APPEND_ONLY_BUFFER_COUNT
 
-			#define TEST_MODIFY_APPEND_ONLY_BUFFER_COUNT_EVER 12
+			#define TEST_MODIFY_APPEND_ONLY_BUFFER_COUNT_EVER 60
 			if(log_number % TEST_MODIFY_APPEND_ONLY_BUFFER_COUNT_EVER)
 			{
 				int error = 0;
