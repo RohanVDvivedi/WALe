@@ -38,7 +38,7 @@ int append_test_log(int thread_id, int log_number)
 	#endif
 	if(compare_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
 	{
-		printf("failed to append to wale\n");
+		printf("failed to append to wale : error -> %d\n", error);
 		exit(-1);
 	}
 	return 1;
