@@ -174,10 +174,11 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 #define READ_IO_ERROR                4
 #define WRITE_IO_ERROR               5
 #define LOG_SEQ_NR_UNREPRESENTABLE   6 // the log_sequence_numbers on the existing file are too wide to be represented by log_seq_nr
-#define MAJOR_SCROLL_ERROR           7 // major scroll error occurred while scrolling the appendonly buffer, this is an error you can not recover from, your only alternative is to close the WALe and re open it, and to loose some unflushed log records
-#define HEADER_CORRUPTED             8 // CRC-32 checksum of log header check failed
-#define LOG_RECORD_CORRUPTED         9 // CRC-32 checksum of log record check failed
-#define MASTER_RECORD_CORRUPTED     10 // CRC-32 checksum of master record check failed
+#define LOG_SEQ_NE_OVERFLOW          7 // appending log record could not succeed, because the next_log_sequence_number will overflow
+#define MAJOR_SCROLL_ERROR           8 // major scroll error occurred while scrolling the appendonly buffer, this is an error you can not recover from, your only alternative is to close the WALe and re open it, and to loose some unflushed log records
+#define HEADER_CORRUPTED             9 // CRC-32 checksum of log header check failed
+#define LOG_RECORD_CORRUPTED        10 // CRC-32 checksum of log record check failed
+#define MASTER_RECORD_CORRUPTED     11 // CRC-32 checksum of master record check failed
 
 // -------------------------------------------------------------
 // append functions
@@ -186,17 +187,17 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 // check_point is marked to be updated in the master record, if is_check_point is set
 // the appended log_record is not permanent (neither is it's being checkpointed-ness) until a flush is successfull
 // if the append was unsuccessfull INVALID_LOG_SEQUENCE_NUMBER will be returned, in such a situation it is best to exit the program
-log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point);
+log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point, int* error);
 
 // returns the last_flushed_log_sequence_number, after the flush
 // it will first ensure that all the appended log records have been flushed and then it will rewrite the master record and flush it
 // making it point to the new last_flushed_log_sequence_number, next_log_sequence_number and check_point_log_sequence_number
 // if the flush was unsuccessfull INVALID_LOG_SEQUENCE_NUMBER will be returned, in such a situation, it is best to exit the program
-log_seq_nr flush_all_log_records(wale* wale_p);
+log_seq_nr flush_all_log_records(wale* wale_p, int* error);
 
 // truncates the log file logically, using only a write to the master record
 // making first_log_sequence_number, last_flushed_log_sequence_number and check_point_log_sequence_number = 0
 // next_log_sequence_number remains as it is, and that will be the next_log_sequence_number that will be alloted
-int truncate_log_records(wale* wale_p);
+int truncate_log_records(wale* wale_p, int* error);
 
 #endif

@@ -570,7 +570,7 @@ static uint64_t append_log_record_data(wale* wale_p, uint64_t* append_slot, cons
 	return bytes_written;
 }
 
-log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point)
+log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point, int* error)
 {
 	// return value defaults to an INVALID_LOG_SEQUENCE_NUMBER
 	log_seq_nr log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
