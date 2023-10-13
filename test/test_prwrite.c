@@ -55,7 +55,7 @@ void* append_logs(void* tid)
 		#ifdef TEST_MODIFY_APPEND_ONLY_BUFFER_COUNT
 
 			#define TEST_MODIFY_APPEND_ONLY_BUFFER_COUNT_EVER 60
-			if(log_number % TEST_MODIFY_APPEND_ONLY_BUFFER_COUNT_EVER)
+			if(log_number % TEST_MODIFY_APPEND_ONLY_BUFFER_COUNT_EVER == 0)
 			{
 				int error = 0;
 				int success_modifying_block_count = modify_append_only_buffer_block_count(&walE, (((uint64_t)(rand())) % APPEND_ONLY_BUFFER_COUNT) + 1, &error);
