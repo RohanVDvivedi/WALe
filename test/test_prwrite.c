@@ -31,9 +31,10 @@ int append_test_log(int thread_id, int log_number)
 	char log_buffer[4096];
 	uint32_t ls = (((unsigned int)rand()) % strlen(NUMBERS));
 	sprintf(log_buffer, LOG_FORMAT, thread_id, log_number, ls, ls, NUMBERS);
-	log_seq_nr log_sequence_number = append_log_record(&walE, log_buffer, strlen(log_buffer) + 1, 0);
+	int error = 0;
+	log_seq_nr log_sequence_number = append_log_record(&walE, log_buffer, strlen(log_buffer) + 1, 0, &error);
 	#ifdef DEBUG_PRINT_LOG_BUFFER
-		printf("log_sequence_number = "); print_log_seq_nr(log_sequence_number); printf(" ::: %s\n\n", log_buffer);
+		printf("log_sequence_number = "); print_log_seq_nr(log_sequence_number); printf(" ::: %s : error -> %d\n\n", log_buffer, error);
 	#endif
 	if(compare_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
 	{
@@ -55,9 +56,10 @@ void* append_logs(void* tid)
 
 		if(log_number % FLUSH_EVERY_LOGS_PER_THREAD == 0)
 		{
-			log_seq_nr flushed_until = flush_all_log_records(&walE);
+			int error = 0;
+			log_seq_nr flushed_until = flush_all_log_records(&walE, &error);
 			#ifdef DEBUG_PRINT_LOG_BUFFER
-				printf("flushed until = "); print_log_seq_nr(flushed_until); printf(" by %d\n\n", thread_id);
+				printf("flushed until = "); print_log_seq_nr(flushed_until); printf(" by %d : error -> %d\n\n", thread_id, error);
 			#endif
 			if(compare_log_seq_nr(flushed_until, INVALID_LOG_SEQUENCE_NUMBER) == 0)
 			{
@@ -100,7 +102,8 @@ int main()
 	wait_for_all_executor_workers_to_complete(exe);
 	delete_executor(exe);
 
-	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE)); printf("\n\n");
+	int error = 0;
+	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE, &error)); printf(" : error -> %d\n\n", error);
 
 	deinitialize_wale(&walE);
 

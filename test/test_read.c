@@ -11,8 +11,6 @@
 #define ADDITIONAL_FLAGS	0 //| O_DIRECT | O_SYNC
 #define FILENAME			"test.log"
 
-#define APPEND_ONLY_BUFFER_COUNT 1
-
 block_io_ops get_block_io_functions(const block_file* bf);
 
 wale walE;
@@ -60,7 +58,7 @@ int main()
 	}
 
 	int init_error = 0;
-	if(!initialize_wale(&walE, 0, INVALID_LOG_SEQUENCE_NUMBER, NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT, &init_error))
+	if(!initialize_wale(&walE, 0, INVALID_LOG_SEQUENCE_NUMBER, NULL, get_block_io_functions(&bf), 0, &init_error))
 	{
 		printf("failed to create wale instance wale_erro = %d (error = %d on fd = %d)\n", init_error, errno, bf.file_descriptor);
 		close_block_file(&bf);

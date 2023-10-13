@@ -11,8 +11,6 @@
 #define ADDITIONAL_FLAGS	0 //| O_DIRECT | O_SYNC
 #define FILENAME			"test.log"
 
-#define APPEND_ONLY_BUFFER_COUNT 1
-
 #include<prwrite_specs.h>
 
 #define LOG_FORMAT "thread_id=<%d> log_number=<%d>"
@@ -33,7 +31,7 @@ int main()
 	}
 
 	int init_error = 0;
-	if(!initialize_wale(&walE, 0, INVALID_LOG_SEQUENCE_NUMBER, NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT, &init_error))
+	if(!initialize_wale(&walE, 0, INVALID_LOG_SEQUENCE_NUMBER, NULL, get_block_io_functions(&bf), 0, &init_error))
 	{
 		printf("failed to create wale instance wale_erro = %d (error = %d on fd = %d)\n", init_error, errno, bf.file_descriptor);
 		close_block_file(&bf);

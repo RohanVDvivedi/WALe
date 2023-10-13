@@ -26,8 +26,9 @@ void append_test_log()
 	char log_buffer[4096];
 	uint32_t ls = (((unsigned int)rand()) % strlen(NUMBERS));
 	sprintf(log_buffer, LOG_FORMAT, ls, ls, NUMBERS);
-	log_seq_nr log_sequence_number = append_log_record(&walE, log_buffer, strlen(log_buffer) + 1, 0);
-	printf("log sequence number written = "); print_log_seq_nr(log_sequence_number); printf(" : %s\n\n", log_buffer);
+	int error = 0;
+	log_seq_nr log_sequence_number = append_log_record(&walE, log_buffer, strlen(log_buffer) + 1, 0, &error);
+	printf("log sequence number written = "); print_log_seq_nr(log_sequence_number); printf(" : %s : error -> %d\n\n", log_buffer, error);
 }
 
 void print_all_flushed_logs()
@@ -77,13 +78,14 @@ int main()
 	append_test_log();
 	append_test_log();
 
-	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE)); printf("\n\n");
+	int error = 0;
+	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE, &error)); printf(" : error -> %d\n\n", error);
 
 	append_test_log();
 
 	print_all_flushed_logs();
 
-	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE)); printf("\n\n");
+	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE, &error)); printf(" : error -> %d\n\n", error);
 
 	print_all_flushed_logs();
 
