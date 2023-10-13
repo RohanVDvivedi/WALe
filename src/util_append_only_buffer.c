@@ -4,6 +4,8 @@
 
 #include<cutlery_stds.h>
 
+#include<stdlib.h>
+
 int scroll_append_only_buffer(wale* wale_p)
 {
 	uint64_t block_count_to_write = UINT_ALIGN_UP(wale_p->append_offset, wale_p->block_io_functions.block_size) / wale_p->block_io_functions.block_size;
