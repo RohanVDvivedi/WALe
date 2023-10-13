@@ -800,6 +800,7 @@ int truncate_log_records(wale* wale_p, int* error)
 	// we can not flush if there has been a major scroll error
 	if(wale_p->major_scroll_error)
 	{
+		(*error) = MAJOR_SCROLL_ERROR;
 		exclusive_unlock(&(wale_p->append_only_buffer_lock));
 		goto EXIT;
 	}
