@@ -169,13 +169,14 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 // in the increasing order of severity, we consider data corruption as non-recoverable
 #define NO_ERROR                     0
 #define PARAM_INVALID                1 // the passed log_sequence number is invalid
-#define ALLOCATION_FAILED            2
-#define READ_IO_ERROR                3
-#define WRITE_IO_ERROR               4
-#define LOG_SEQ_NR_UNREPRESENTABLE   5 // the log_sequence_numbers on the existing file are too wide to be represented by log_seq_nr
-#define HEADER_CORRUPTED             6 // CRC-32 checksum of log header check failed
-#define LOG_RECORD_CORRUPTED         7 // CRC-32 checksum of log record check failed
-#define MASTER_RECORD_CORRUPTED      8 // CRC-32 checksum of master record check failed
+#define ZERO_BUFFER_BLOCK_COUNT      2 // this happens when you issue a append_log_record, flush_all_log_records or truncate_log_records to a wale which has 0 blocks for append only buffer
+#define ALLOCATION_FAILED            3
+#define READ_IO_ERROR                4
+#define WRITE_IO_ERROR               5
+#define LOG_SEQ_NR_UNREPRESENTABLE   6 // the log_sequence_numbers on the existing file are too wide to be represented by log_seq_nr
+#define HEADER_CORRUPTED             7 // CRC-32 checksum of log header check failed
+#define LOG_RECORD_CORRUPTED         8 // CRC-32 checksum of log record check failed
+#define MASTER_RECORD_CORRUPTED      9 // CRC-32 checksum of master record check failed
 
 // -------------------------------------------------------------
 // append functions
