@@ -52,7 +52,18 @@ void* append_logs(void* tid)
 		if(!append_test_log(thread_id, log_number))
 			return NULL;
 
-		// sleep for random time
+		#ifdef TEST_MODIFY_APPEND_ONLY_BUFFER_COUNT
+
+			#define TEST_MODIFY_APPEND_ONLY_BUFFER_COUNT_EVER 12
+			if(log_number % TEST_MODIFY_APPEND_ONLY_BUFFER_COUNT_EVER)
+			{
+				int error = 0;
+				int success_modifying_block_count = modify_append_only_buffer_block_count(&walE, (((uint64_t)(rand())) % APPEND_ONLY_BUFFER_COUNT) + 1, &error);
+				if(!success_modifying_block_count)
+					printf("failed to modify append only buffer block count by %d : error -> %d\n\n", thread_id, error);
+			}
+
+		#endif
 
 		if(log_number % FLUSH_EVERY_LOGS_PER_THREAD == 0)
 		{
