@@ -181,7 +181,12 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 #define MASTER_RECORD_CORRUPTED     11 // CRC-32 checksum of master record check failed
 
 // -------------------------------------------------------------
-// append functions
+
+// update the number of blocks in the append only buffer at run time
+int modify_append_only_buffer_block_count(wale* wale_p, uint64_t buffer_block_count);
+
+// -------------------------------------------------------------
+// writer functions of WALe
 
 // returns the log_sequence_number of the last log record inserted
 // check_point is marked to be updated in the master record, if is_check_point is set
