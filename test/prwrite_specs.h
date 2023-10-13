@@ -4,8 +4,8 @@
 // specs for prwrite test cases
 
 #define THREAD_COUNT 512
-#define LOGS_PER_THREAD 128
-#define FLUSH_EVERY_LOGS_PER_THREAD 97
+#define LOGS_PER_THREAD 512
+#define FLUSH_EVERY_LOGS_PER_THREAD 96
 #define TEST_MODIFY_APPEND_ONLY_BUFFER_COUNT
 
 #endif
