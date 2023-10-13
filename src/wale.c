@@ -467,7 +467,7 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 	return valid;
 }
 
-static log_seq_nr get_log_sequence_number_for_next_log_record_and_advance_master_record(wale* wale_p, uint32_t log_record_size, int is_check_point, uint32_t* prev_log_record_size)
+static log_seq_nr get_log_sequence_number_for_next_log_record_and_advance_master_record(wale* wale_p, uint32_t log_record_size, int is_check_point, uint32_t* prev_log_record_size, int* error)
 {
 	// compute the total slot size required by this new log record
 	uint64_t total_log_record_slot_size = HEADER_SIZE + ((uint64_t)log_record_size) + UINT64_C(8); // 8 for crc32 of header and log record itself
@@ -478,7 +478,10 @@ static log_seq_nr get_log_sequence_number_for_next_log_record_and_advance_master
 	log_seq_nr log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number;
 	log_seq_nr new_next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 	if(!add_log_seq_nr(&(new_next_log_sequence_number), wale_p->in_memory_master_record.next_log_sequence_number, get_log_seq_nr(total_log_record_slot_size), wale_p->max_limit))
+	{
+		(*error) = LOG_SEQ_NR_OVERFLOW;
 		return INVALID_LOG_SEQUENCE_NUMBER;
+	}
 
 	// if there was a last_flushed_log_sequence_number, then return also its size
 	if(!are_equal_log_seq_nr(wale_p->in_memory_master_record.last_flushed_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
@@ -611,8 +614,8 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 			file_offset_for_next_log_sequence_number = offset_from_first_log_sequence_number + wale_p->block_io_functions.block_size;
 		}
 
-		if(!is_file_offset_within_append_only_buffer(wale_p, file_offset_for_next_log_sequence_number)
-			&& !wale_p->major_scroll_error)
+		if(!wale_p->major_scroll_error &&
+			!is_file_offset_within_append_only_buffer(wale_p, file_offset_for_next_log_sequence_number))
 		{
 			shared_unlock(&(wale_p->append_only_buffer_lock));
 			pthread_cond_wait(&(wale_p->wait_for_scroll), get_wale_lock(wale_p));
@@ -623,11 +626,14 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	}
 
 	if(wale_p->major_scroll_error)
+	{
+		(*error) = MAJOR_SCROLL_ERROR;
 		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
+	}
 
 	// take slot if the next log sequence number is in the append only buffer
 	uint32_t prev_log_record_size = 0;
-	log_sequence_number = get_log_sequence_number_for_next_log_record_and_advance_master_record(wale_p, log_record_size, is_check_point, &prev_log_record_size);
+	log_sequence_number = get_log_sequence_number_for_next_log_record_and_advance_master_record(wale_p, log_record_size, is_check_point, &prev_log_record_size, error);
 
 	// exit suggesting failure to allocate a log_sequence_number
 	if(are_equal_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
@@ -649,48 +655,46 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	char bytes_for_uint32[4];
 	uint32_t calculated_crc32 = crc32_init();
 
-	int scroll_error = 0;
-
 	// write prev_log_record_size
 	serialize_le_uint32(bytes_for_uint32, sizeof(uint32_t), prev_log_record_size);
 	calculated_crc32 = crc32_util(calculated_crc32, bytes_for_uint32, 4);
-	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, &scroll_error);
-	if(scroll_error)
+	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, error);
+	if(*error)
 		goto SCROLL_FAIL;
 
 	// write log_record_size
 	serialize_le_uint32(bytes_for_uint32, sizeof(uint32_t), log_record_size);
 	calculated_crc32 = crc32_util(calculated_crc32, bytes_for_uint32, 4);
-	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, &scroll_error);
-	if(scroll_error)
+	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, error);
+	if(*error)
 		goto SCROLL_FAIL;
 
 	// write calculated_crc32
 	serialize_le_uint32(bytes_for_uint32, sizeof(uint32_t), calculated_crc32);
-	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, &scroll_error);
-	if(scroll_error)
+	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, error);
+	if(*error)
 		goto SCROLL_FAIL;
 
 	// reinitialize the calculated_crc32
 	calculated_crc32 = crc32_init();
 
 	// write log record itself
-	append_log_record_data(wale_p, &append_slot, log_record, log_record_size, &total_bytes_to_write, &scroll_error);
+	append_log_record_data(wale_p, &append_slot, log_record, log_record_size, &total_bytes_to_write, error);
 	calculated_crc32 = crc32_util(calculated_crc32, log_record, log_record_size);
-	if(scroll_error)
+	if(*error)
 		goto SCROLL_FAIL;
 
 	// write calculated_crc32
 	serialize_le_uint32(bytes_for_uint32, sizeof(uint32_t), calculated_crc32);
-	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, &scroll_error);
-	if(scroll_error)
+	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, error);
+	if(*error)
 		goto SCROLL_FAIL;
 
 	SCROLL_FAIL:;
 	pthread_mutex_lock(get_wale_lock(wale_p));
 
 	// this condition implies a fail to scroll the append only buffer
-	if(scroll_error)
+	if(*error)
 		log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
 	RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT:;
