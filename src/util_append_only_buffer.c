@@ -102,7 +102,7 @@ int resize_append_only_buffer(wale* wale_p, uint64_t new_buffer_block_count, int
 		read_unlock(&(wale_p->flushed_log_records_lock));
 
 		// there are no log records on the disk, if the first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER
-		if(are_equal_log_seq_nr(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+		if(are_equal_large_uint(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 		{
 			wale_p->buffer = new_buffer;
 			wale_p->buffer_block_count = new_buffer_block_count;
@@ -115,10 +115,10 @@ int resize_append_only_buffer(wale* wale_p, uint64_t new_buffer_block_count, int
 			// calculate file_offset to start appending from
 			uint64_t file_offset_to_append_from;
 			{
-				log_seq_nr temp; // = next_log_sequence_number - first_log_sequence_number + block_size
-				if(	(!sub_log_seq_nr(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.first_log_sequence_number)) ||
-					(!add_log_seq_nr(&temp, temp, get_log_seq_nr(wale_p->block_io_functions.block_size), LOG_SEQ_NR_MIN)) ||
-					(!cast_to_uint64(&file_offset_to_append_from, temp)) )
+				large_uint temp; // = next_log_sequence_number - first_log_sequence_number + block_size
+				if(	(!sub_large_uint(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.first_log_sequence_number)) ||
+					(!add_large_uint(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN)) ||
+					(!cast_large_uint_to_uint64(&file_offset_to_append_from, temp)) )
 				{
 					// this implies master record is corrupted
 					free(new_buffer);

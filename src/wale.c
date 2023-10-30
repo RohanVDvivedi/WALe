@@ -2,12 +2,13 @@
 
 #include<wale_get_lock_util.h>
 #include<crc32_util.h>
-#include<storage_byte_ordering.h>
 #include<util_random_read.h>
 #include<util_append_only_buffer.h>
 #include<util_master_record_io.h>
 
 #include<rwlock.h>
+
+#include<read_write_int.h>
 
 #include<cutlery_stds.h>
 #include<cutlery_math.h>
@@ -53,44 +54,44 @@ uint32_t get_log_sequence_number_width(wale* wale_p)
 	return log_sequence_number_width;
 }
 
-log_seq_nr get_first_log_sequence_number(wale* wale_p)
+large_uint get_first_log_sequence_number(wale* wale_p)
 {
 	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
-	log_seq_nr first_log_sequence_number = wale_p->on_disk_master_record.first_log_sequence_number;
+	large_uint first_log_sequence_number = wale_p->on_disk_master_record.first_log_sequence_number;
 
 	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
 	return first_log_sequence_number;
 }
 
-log_seq_nr get_last_flushed_log_sequence_number(wale* wale_p)
+large_uint get_last_flushed_log_sequence_number(wale* wale_p)
 {
 	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
-	log_seq_nr last_flushed_log_sequence_number = wale_p->on_disk_master_record.last_flushed_log_sequence_number;
+	large_uint last_flushed_log_sequence_number = wale_p->on_disk_master_record.last_flushed_log_sequence_number;
 
 	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
 	return last_flushed_log_sequence_number;
 }
 
-log_seq_nr get_check_point_log_sequence_number(wale* wale_p)
+large_uint get_check_point_log_sequence_number(wale* wale_p)
 {
 	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
-	log_seq_nr check_point_log_sequence_number = wale_p->on_disk_master_record.check_point_log_sequence_number;
+	large_uint check_point_log_sequence_number = wale_p->on_disk_master_record.check_point_log_sequence_number;
 
 	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
 	return check_point_log_sequence_number;
 }
 
-log_seq_nr get_next_log_sequence_number(wale* wale_p)
+large_uint get_next_log_sequence_number(wale* wale_p)
 {
 	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
-	log_seq_nr next_log_sequence_number = wale_p->on_disk_master_record.next_log_sequence_number;
+	large_uint next_log_sequence_number = wale_p->on_disk_master_record.next_log_sequence_number;
 
 	suffix_to_release_flushed_log_records_reader_lock(wale_p);
 
@@ -123,9 +124,9 @@ static int parse_and_check_crc32_for_log_record_header_at(log_record_header* res
 	calcuated_crc32 = crc32_util(calcuated_crc32, serial_header, HEADER_SIZE);
 
 	// deserialize all the fields
-	result->prev_log_record_size = deserialize_le_uint32(serial_header + 0, sizeof(uint32_t));
-	result->curr_log_record_size = deserialize_le_uint32(serial_header + 4, sizeof(uint32_t));
-	uint32_t parsed_crc32 = deserialize_le_uint32(serial_header + 8, sizeof(uint32_t));
+	result->prev_log_record_size = read_uint32(serial_header + 0, sizeof(uint32_t));
+	result->curr_log_record_size = read_uint32(serial_header + 4, sizeof(uint32_t));
+	uint32_t parsed_crc32 = read_uint32(serial_header + 8, sizeof(uint32_t));
 
 	// compare the parsed crc32 with the calculated one
 	if(parsed_crc32 != calcuated_crc32)
@@ -138,7 +139,7 @@ static int parse_and_check_crc32_for_log_record_header_at(log_record_header* res
 	return 1;
 }
 
-log_seq_nr get_next_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence_number, int* error)
+large_uint get_next_log_sequence_number_of(wale* wale_p, large_uint log_sequence_number, int* error)
 {
 	// initialize error to no error
 	(*error) = NO_ERROR;
@@ -146,12 +147,12 @@ log_seq_nr get_next_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
 	// set it to INVALID_LOG_SEQUENCE_NUMBER, which is default result
-	log_seq_nr next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+	large_uint next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
 	// if the wale has no records, OR the log_sequence_number is not within first and last_flushed log_sequence_number then fail
-	if(are_equal_log_seq_nr(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
-		compare_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0 || 
-		compare_log_seq_nr(wale_p->on_disk_master_record.last_flushed_log_sequence_number, log_sequence_number) < 0
+	if(are_equal_large_uint(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
+		compare_large_uint(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0 || 
+		compare_large_uint(wale_p->on_disk_master_record.last_flushed_log_sequence_number, log_sequence_number) < 0
 		)
 	{
 		(*error) = PARAM_INVALID;
@@ -159,16 +160,16 @@ log_seq_nr get_next_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 	}
 
 	// next of last_flushed_log_sequence_number does not exists
-	if(are_equal_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.last_flushed_log_sequence_number))
+	if(are_equal_large_uint(log_sequence_number, wale_p->on_disk_master_record.last_flushed_log_sequence_number))
 		goto EXIT;
 
 	// calculate the offset in file of the log_record at log_sequence_number
 	uint64_t file_offset_of_log_record; // = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 	{
-		log_seq_nr temp;
-		if(	!sub_log_seq_nr(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
-			!add_log_seq_nr(&temp, temp, get_log_seq_nr(wale_p->block_io_functions.block_size), LOG_SEQ_NR_MIN) ||
-			!cast_to_uint64(&file_offset_of_log_record, temp))
+		large_uint temp;
+		if(	!sub_large_uint(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
+			!add_large_uint(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN) ||
+			!cast_large_uint_to_uint64(&file_offset_of_log_record, temp))
 		{
 			// this case will not ever happen, but just so to handle it
 			(*error) = PARAM_INVALID;
@@ -183,14 +184,14 @@ log_seq_nr get_next_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 	uint64_t total_size_curr_log_record = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 4 for crc32 of the log record itself and 4 for crc32 of the header
 
 	// the next_log_sequence_number is right after this log_record
-	if(!add_log_seq_nr(&next_log_sequence_number, log_sequence_number, get_log_seq_nr(total_size_curr_log_record), wale_p->max_limit))
+	if(!add_large_uint(&next_log_sequence_number, log_sequence_number, get_large_uint(total_size_curr_log_record), wale_p->max_limit))
 	{
 		(*error) = HEADER_CORRUPTED;
 		goto EXIT;
 	}
 
 	// next_log_sequence_number can not be higher than the on_disk_master_record.last_flushed_log_sequence_number
-	if(compare_log_seq_nr(next_log_sequence_number, wale_p->on_disk_master_record.last_flushed_log_sequence_number) > 0)
+	if(compare_large_uint(next_log_sequence_number, wale_p->on_disk_master_record.last_flushed_log_sequence_number) > 0)
 	{
 		(*error) = HEADER_CORRUPTED;
 		goto EXIT;
@@ -202,7 +203,7 @@ log_seq_nr get_next_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 	return next_log_sequence_number;
 }
 
-log_seq_nr get_prev_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence_number, int* error)
+large_uint get_prev_log_sequence_number_of(wale* wale_p, large_uint log_sequence_number, int* error)
 {
 	// initialize error to no error
 	(*error) = NO_ERROR;
@@ -210,12 +211,12 @@ log_seq_nr get_prev_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 	prefix_to_acquire_flushed_log_records_reader_lock(wale_p);
 
 	// set it to INVALID_LOG_SEQUENCE_NUMBER, which is default result
-	log_seq_nr prev_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+	large_uint prev_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
 	// if the wale has no records, OR the log_sequence_number is not within first and last_flushed log_sequence_number then fail
-	if(are_equal_log_seq_nr(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
-		compare_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0 || 
-		compare_log_seq_nr(wale_p->on_disk_master_record.last_flushed_log_sequence_number, log_sequence_number) < 0
+	if(are_equal_large_uint(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
+		compare_large_uint(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0 || 
+		compare_large_uint(wale_p->on_disk_master_record.last_flushed_log_sequence_number, log_sequence_number) < 0
 		)
 	{
 		(*error) = PARAM_INVALID;
@@ -223,16 +224,16 @@ log_seq_nr get_prev_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 	}
 
 	// prev of first_log_sequence_number does not exists
-	if(are_equal_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number))
+	if(are_equal_large_uint(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number))
 		goto EXIT;
 
 	// calculate the offset in file of the log_record at log_sequence_number
 	uint64_t file_offset_of_log_record; // = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 	{
-		log_seq_nr temp;
-		if(	!sub_log_seq_nr(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
-			!add_log_seq_nr(&temp, temp, get_log_seq_nr(wale_p->block_io_functions.block_size), LOG_SEQ_NR_MIN) ||
-			!cast_to_uint64(&file_offset_of_log_record, temp))
+		large_uint temp;
+		if(	!sub_large_uint(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
+			!add_large_uint(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN) ||
+			!cast_large_uint_to_uint64(&file_offset_of_log_record, temp))
 		{
 			// this case will not ever happen, but just so to handle it
 			(*error) = PARAM_INVALID;
@@ -248,15 +249,15 @@ log_seq_nr get_prev_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 
 	// the prev_log_sequence_number is right before this one
 	// it can not be equal to the total_size_prev_record, else prev_log_sequence_number will become 0, i.e. INVALID_LOG_SEQUENCE_NUMBER
-	if(are_equal_log_seq_nr(log_sequence_number, get_log_seq_nr(total_size_prev_log_record)) ||
-		!sub_log_seq_nr(&prev_log_sequence_number, log_sequence_number, get_log_seq_nr(total_size_prev_log_record)))
+	if(are_equal_large_uint(log_sequence_number, get_large_uint(total_size_prev_log_record)) ||
+		!sub_large_uint(&prev_log_sequence_number, log_sequence_number, get_large_uint(total_size_prev_log_record)))
 	{
 		(*error) = HEADER_CORRUPTED;
 		goto EXIT;
 	}
 
 	// previous log_sequence_number must be greater than or equal to the first_log_sequence_number
-	if(compare_log_seq_nr(prev_log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0)
+	if(compare_large_uint(prev_log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0)
 	{
 		(*error) = HEADER_CORRUPTED;
 		goto EXIT;
@@ -268,7 +269,7 @@ log_seq_nr get_prev_log_sequence_number_of(wale* wale_p, log_seq_nr log_sequence
 	return prev_log_sequence_number;
 }
 
-void* get_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_t* log_record_size, int* error)
+void* get_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_t* log_record_size, int* error)
 {
 	// initialize error to no error
 	(*error) = NO_ERROR;
@@ -279,9 +280,9 @@ void* get_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_t* 
 	void* log_record = NULL;
 
 	// if the wale has no records, OR its log_sequence_number is not between first and last_flushed log_sequence_number
-	if(are_equal_log_seq_nr(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
-		compare_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0 || 
-		compare_log_seq_nr(wale_p->on_disk_master_record.last_flushed_log_sequence_number, log_sequence_number) < 0
+	if(are_equal_large_uint(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
+		compare_large_uint(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0 || 
+		compare_large_uint(wale_p->on_disk_master_record.last_flushed_log_sequence_number, log_sequence_number) < 0
 		)
 	{
 		(*error) = PARAM_INVALID;
@@ -291,10 +292,10 @@ void* get_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_t* 
 	// calculate the offset in file of the log_record at log_sequence_number
 	uint64_t file_offset_of_log_record; // = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 	{
-		log_seq_nr temp;
-		if(	!sub_log_seq_nr(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
-			!add_log_seq_nr(&temp, temp, get_log_seq_nr(wale_p->block_io_functions.block_size), LOG_SEQ_NR_MIN) ||
-			!cast_to_uint64(&file_offset_of_log_record, temp))
+		large_uint temp;
+		if(	!sub_large_uint(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
+			!add_large_uint(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN) ||
+			!cast_large_uint_to_uint64(&file_offset_of_log_record, temp))
 		{
 			// this case will not ever happen, but just so to handle it
 			(*error) = PARAM_INVALID;
@@ -310,15 +311,15 @@ void* get_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_t* 
 	uint64_t total_log_size = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 8 for both the crc32-s
 
 	// make sure that the next_log_sequence_number of this log_record does not overflow
-	log_seq_nr next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
-	if(!add_log_seq_nr(&next_log_sequence_number, log_sequence_number, get_log_seq_nr(total_log_size), wale_p->max_limit))
+	large_uint next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+	if(!add_large_uint(&next_log_sequence_number, log_sequence_number, get_large_uint(total_log_size), wale_p->max_limit))
 	{
 		(*error) = PARAM_INVALID;
 		goto EXIT;
 	}
 
 	// the next log_sequence number of this log_record can not be more than the next log_sequence number of the on_disk_master_record
-	if(compare_log_seq_nr(next_log_sequence_number, wale_p->on_disk_master_record.next_log_sequence_number) > 0)
+	if(compare_large_uint(next_log_sequence_number, wale_p->on_disk_master_record.next_log_sequence_number) > 0)
 	{
 		(*error) = PARAM_INVALID;
 		goto EXIT;
@@ -359,7 +360,7 @@ void* get_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_t* 
 		goto EXIT;
 	}
 
-	uint32_t parsed_crc32 = deserialize_le_uint32(crc_read, sizeof(uint32_t));
+	uint32_t parsed_crc32 = read_uint32(crc_read, sizeof(uint32_t));
 	if(parsed_crc32 != calculated_crc32)
 	{
 		(*error) = LOG_RECORD_CORRUPTED;
@@ -374,7 +375,7 @@ void* get_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_t* 
 	return log_record;
 }
 
-int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_t* log_record_size, int* error)
+int validate_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_t* log_record_size, int* error)
 {
 	// initialize error to no error
 	(*error) = NO_ERROR;
@@ -385,9 +386,9 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 	int valid = 0;
 
 	// if the wale has no records, OR its log_sequence_number is not between first and last_flushed log_sequence_number
-	if(are_equal_log_seq_nr(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
-		compare_log_seq_nr(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0 || 
-		compare_log_seq_nr(wale_p->on_disk_master_record.last_flushed_log_sequence_number, log_sequence_number) < 0
+	if(are_equal_large_uint(wale_p->on_disk_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
+		compare_large_uint(log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) < 0 || 
+		compare_large_uint(wale_p->on_disk_master_record.last_flushed_log_sequence_number, log_sequence_number) < 0
 		)
 	{
 		(*error) = PARAM_INVALID;
@@ -397,10 +398,10 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 	// calculate the offset in file of the log_record at log_sequence_number
 	uint64_t file_offset_of_log_record; // = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 	{
-		log_seq_nr temp;
-		if(	!sub_log_seq_nr(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
-			!add_log_seq_nr(&temp, temp, get_log_seq_nr(wale_p->block_io_functions.block_size), LOG_SEQ_NR_MIN) ||
-			!cast_to_uint64(&file_offset_of_log_record, temp))
+		large_uint temp;
+		if(	!sub_large_uint(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
+			!add_large_uint(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN) ||
+			!cast_large_uint_to_uint64(&file_offset_of_log_record, temp))
 		{
 			// this case will not ever happen, but just so to handle it
 			(*error) = PARAM_INVALID;
@@ -416,15 +417,15 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 	uint64_t total_log_size = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 8 for both the crc32-s
 
 	// make sure that the next_log_sequence_number of this log_record does not overflow
-	log_seq_nr next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
-	if(!add_log_seq_nr(&next_log_sequence_number, log_sequence_number, get_log_seq_nr(total_log_size), wale_p->max_limit))
+	large_uint next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+	if(!add_large_uint(&next_log_sequence_number, log_sequence_number, get_large_uint(total_log_size), wale_p->max_limit))
 	{
 		(*error) = PARAM_INVALID;
 		goto EXIT;
 	}
 
 	// the next log_sequence number of this log_record can not be more than the next log_sequence number of the on_disk_master_record
-	if(compare_log_seq_nr(next_log_sequence_number, wale_p->on_disk_master_record.next_log_sequence_number) > 0)
+	if(compare_large_uint(next_log_sequence_number, wale_p->on_disk_master_record.next_log_sequence_number) > 0)
 	{
 		(*error) = PARAM_INVALID;
 		goto EXIT;
@@ -452,7 +453,7 @@ int validate_log_record_at(wale* wale_p, log_seq_nr log_sequence_number, uint32_
 		goto EXIT;
 	}
 
-	uint32_t parsed_crc32 = deserialize_le_uint32(crc_read, sizeof(uint32_t));
+	uint32_t parsed_crc32 = read_uint32(crc_read, sizeof(uint32_t));
 	if(parsed_crc32 != calculated_crc32)
 	{
 		(*error) = LOG_RECORD_CORRUPTED;
@@ -492,7 +493,7 @@ int modify_append_only_buffer_block_count(wale* wale_p, uint64_t buffer_block_co
 	return res;
 }
 
-static log_seq_nr get_log_sequence_number_for_next_log_record_and_advance_master_record(wale* wale_p, uint32_t log_record_size, int is_check_point, uint32_t* prev_log_record_size, int* error)
+static large_uint get_log_sequence_number_for_next_log_record_and_advance_master_record(wale* wale_p, uint32_t log_record_size, int is_check_point, uint32_t* prev_log_record_size, int* error)
 {
 	// compute the total slot size required by this new log record
 	uint64_t total_log_record_slot_size = HEADER_SIZE + ((uint64_t)log_record_size) + UINT64_C(8); // 8 for crc32 of header and log record itself
@@ -500,22 +501,22 @@ static log_seq_nr get_log_sequence_number_for_next_log_record_and_advance_master
 	// its log sequence number will simply be the next log sequence number
 	// check for overflow of the next_log_sequence_number, upon alloting this slot
 	// we do not advance the master record, if the next_log_sequence_number overflows
-	log_seq_nr log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number;
-	log_seq_nr new_next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
-	if(!add_log_seq_nr(&(new_next_log_sequence_number), wale_p->in_memory_master_record.next_log_sequence_number, get_log_seq_nr(total_log_record_slot_size), wale_p->max_limit))
+	large_uint log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number;
+	large_uint new_next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+	if(!add_large_uint(&(new_next_log_sequence_number), wale_p->in_memory_master_record.next_log_sequence_number, get_large_uint(total_log_record_slot_size), wale_p->max_limit))
 	{
-		(*error) = LOG_SEQ_NR_OVERFLOW;
+		(*error) = LOG_SEQUENCE_NUMBER_OVERFLOW;
 		return INVALID_LOG_SEQUENCE_NUMBER;
 	}
 
 	// if there was a last_flushed_log_sequence_number, then return also its size
-	if(!are_equal_log_seq_nr(wale_p->in_memory_master_record.last_flushed_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+	if(!are_equal_large_uint(wale_p->in_memory_master_record.last_flushed_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 	{
 		uint64_t prev_log_record_total_size;
 		{
-			log_seq_nr temp;
-			if(!sub_log_seq_nr(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.last_flushed_log_sequence_number) ||
-				!cast_to_uint64(&prev_log_record_total_size, temp))
+			large_uint temp;
+			if(!sub_large_uint(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.last_flushed_log_sequence_number) ||
+				!cast_large_uint_to_uint64(&prev_log_record_total_size, temp))
 				return INVALID_LOG_SEQUENCE_NUMBER;
 
 		}
@@ -525,7 +526,7 @@ static log_seq_nr get_log_sequence_number_for_next_log_record_and_advance_master
 		(*prev_log_record_size) = 0;
 
 	// if earlier there were no log records on the disk, then this will be the new first_log_sequence_number
-	if(are_equal_log_seq_nr(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+	if(are_equal_large_uint(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 		wale_p->in_memory_master_record.first_log_sequence_number = log_sequence_number;
 
 	// this will also be the new last_flushed_log_sequence_number
@@ -598,13 +599,13 @@ static uint64_t append_log_record_data(wale* wale_p, uint64_t* append_slot, cons
 	return bytes_written;
 }
 
-log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point, int* error)
+large_uint append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point, int* error)
 {
 	// initialize error to no error
 	(*error) = NO_ERROR;
 
 	// return value defaults to an INVALID_LOG_SEQUENCE_NUMBER
-	log_seq_nr log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+	large_uint log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
@@ -624,15 +625,15 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	{
 		uint64_t file_offset_for_next_log_sequence_number;
 
-		if(are_equal_log_seq_nr(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+		if(are_equal_large_uint(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 			file_offset_for_next_log_sequence_number = wale_p->block_io_functions.block_size;
 		else
 		{
 			uint64_t offset_from_first_log_sequence_number;// = wale_p->in_memory_master_record.next_log_sequence_number - wale_p->in_memory_master_record.first_log_sequence_number;
 			{
-				log_seq_nr temp;
-				if(!sub_log_seq_nr(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.first_log_sequence_number) ||
-					!cast_to_uint64(&offset_from_first_log_sequence_number, temp))
+				large_uint temp;
+				if(!sub_large_uint(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.first_log_sequence_number) ||
+					!cast_large_uint_to_uint64(&offset_from_first_log_sequence_number, temp))
 				{
 					// this must never happen, if it happens just fail
 					goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
@@ -675,7 +676,7 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	log_sequence_number = get_log_sequence_number_for_next_log_record_and_advance_master_record(wale_p, log_record_size, is_check_point, &prev_log_record_size, error);
 
 	// exit suggesting failure to allocate a log_sequence_number
-	if(are_equal_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+	if(are_equal_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
 
 	// compute the total bytes we will write
@@ -695,21 +696,21 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	uint32_t calculated_crc32 = crc32_init();
 
 	// write prev_log_record_size
-	serialize_le_uint32(bytes_for_uint32, sizeof(uint32_t), prev_log_record_size);
+	write_uint32(bytes_for_uint32, sizeof(uint32_t), prev_log_record_size);
 	calculated_crc32 = crc32_util(calculated_crc32, bytes_for_uint32, 4);
 	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, error);
 	if(*error)
 		goto SCROLL_FAIL;
 
 	// write log_record_size
-	serialize_le_uint32(bytes_for_uint32, sizeof(uint32_t), log_record_size);
+	write_uint32(bytes_for_uint32, sizeof(uint32_t), log_record_size);
 	calculated_crc32 = crc32_util(calculated_crc32, bytes_for_uint32, 4);
 	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, error);
 	if(*error)
 		goto SCROLL_FAIL;
 
 	// write calculated_crc32
-	serialize_le_uint32(bytes_for_uint32, sizeof(uint32_t), calculated_crc32);
+	write_uint32(bytes_for_uint32, sizeof(uint32_t), calculated_crc32);
 	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, error);
 	if(*error)
 		goto SCROLL_FAIL;
@@ -724,7 +725,7 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 		goto SCROLL_FAIL;
 
 	// write calculated_crc32
-	serialize_le_uint32(bytes_for_uint32, sizeof(uint32_t), calculated_crc32);
+	write_uint32(bytes_for_uint32, sizeof(uint32_t), calculated_crc32);
 	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, error);
 	if(*error)
 		goto SCROLL_FAIL;
@@ -747,13 +748,13 @@ log_seq_nr append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	return log_sequence_number;
 }
 
-log_seq_nr flush_all_log_records(wale* wale_p, int* error)
+large_uint flush_all_log_records(wale* wale_p, int* error)
 {
 	// initialize error to no error
 	(*error) = NO_ERROR;
 
 	// return value defaults to INVALID_LOG_SEQUENCE_NUMBER
-	log_seq_nr last_flushed_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+	large_uint last_flushed_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));

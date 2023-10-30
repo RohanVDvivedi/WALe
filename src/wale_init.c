@@ -7,7 +7,7 @@
 
 #include<cutlery_stds.h>
 
-int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, int* error)
+int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, large_uint next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, int* error)
 {
 	wale_p->has_internal_lock = (external_lock == NULL);
 
@@ -18,7 +18,7 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr
 
 	wale_p->block_io_functions = block_io_functions;
 
-	if(are_equal_log_seq_nr(next_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+	if(are_equal_large_uint(next_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 	{
 		if(!read_master_record(&(wale_p->on_disk_master_record), &(wale_p->block_io_functions), error))
 			return 0;
@@ -26,7 +26,7 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr
 	else
 	{
 		// log_sequence_number width must be in range [1, LOG_SEQ_NR_MAX_BYTES], both inclusive
-		if(log_sequence_number_width == 0 || log_sequence_number_width > LOG_SEQ_NR_MAX_BYTES)\
+		if(log_sequence_number_width == 0 || log_sequence_number_width > LARGE_UINT_MAX_BYTES)
 		{
 			(*error) = PARAM_INVALID;
 			return 0;
@@ -48,8 +48,8 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr
 	initialize_rwlock(&(wale_p->flushed_log_records_lock), get_wale_lock(wale_p));
 	initialize_rwlock(&(wale_p->append_only_buffer_lock), get_wale_lock(wale_p));
 
-	wale_p->max_limit = LOG_SEQ_NR_MIN;
-	set_bit_in_log_seq_nr(&(wale_p->max_limit), wale_p->in_memory_master_record.log_sequence_number_width * CHAR_BIT);
+	wale_p->max_limit = LARGE_UINT_MIN;
+	set_bit_in_large_uint(&(wale_p->max_limit), wale_p->in_memory_master_record.log_sequence_number_width * CHAR_BIT);
 
 	if(append_only_block_count == 0) // WALe is opened only for reading
 	{
@@ -68,7 +68,7 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr
 		}
 
 		// there are no log records on the disk, if the first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER
-		if(are_equal_log_seq_nr(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+		if(are_equal_large_uint(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 		{
 			wale_p->append_offset = 0;
 			wale_p->buffer_start_block_id = 1;
@@ -78,10 +78,10 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, log_seq_nr
 			// calculate file_offset to start appending from
 			uint64_t file_offset_to_append_from;
 			{
-				log_seq_nr temp; // = next_log_sequence_number - first_log_sequence_number + block_size
-				if(	(!sub_log_seq_nr(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.first_log_sequence_number)) ||
-					(!add_log_seq_nr(&temp, temp, get_log_seq_nr(wale_p->block_io_functions.block_size), LOG_SEQ_NR_MIN)) ||
-					(!cast_to_uint64(&file_offset_to_append_from, temp)) )
+				large_uint temp; // = next_log_sequence_number - first_log_sequence_number + block_size
+				if(	(!sub_large_uint(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.first_log_sequence_number)) ||
+					(!add_large_uint(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN)) ||
+					(!cast_large_uint_to_uint64(&file_offset_to_append_from, temp)) )
 				{
 					// this implies master record is corrupted
 					free(wale_p->buffer);
