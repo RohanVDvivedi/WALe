@@ -40,9 +40,9 @@ int main()
 
 	int next_log_to_see[THREAD_COUNT] = {};
 
-	log_seq_nr log_sequence_number = get_first_log_sequence_number(&walE);
+	large_uint log_sequence_number = get_first_log_sequence_number(&walE);
 	int error = 0;
-	while(compare_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) != 0)
+	while(compare_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) != 0)
 	{
 		uint32_t log_record_size;
 		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size, &error);
@@ -58,7 +58,7 @@ int main()
 			next_log_to_see[thread_id]++;
 		else
 		{
-			printf("error at log_sequence_number = "); print_log_seq_nr(log_sequence_number); printf(" seen -> thread_id=%d log_number=%d\n", thread_id, log_number);
+			printf("error at log_sequence_number = "); print_large_uint(log_sequence_number); printf(" seen -> thread_id=%d log_number=%d\n", thread_id, log_number);
 			exit(-1);
 		}
 		log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, &error);

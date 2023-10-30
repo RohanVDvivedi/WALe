@@ -18,32 +18,32 @@ wale walE;
 void print_all_flushed_logs()
 {
 	int error = 0;
-	log_seq_nr log_sequence_number = get_first_log_sequence_number(&walE);
-	printf("first_log_sequence_numbers = "); print_log_seq_nr(log_sequence_number); printf("\n");
-	printf("check_point_log_sequence_numbers = "); print_log_seq_nr(get_check_point_log_sequence_number(&walE)); printf("\n");
-	while(compare_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) != 0)
+	large_uint log_sequence_number = get_first_log_sequence_number(&walE);
+	printf("first_log_sequence_numbers = "); print_large_uint(log_sequence_number); printf("\n");
+	printf("check_point_log_sequence_numbers = "); print_large_uint(get_check_point_log_sequence_number(&walE)); printf("\n");
+	while(compare_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) != 0)
 	{
 		uint32_t log_record_size;
 		int valid = validate_log_record_at(&walE, log_sequence_number, &log_record_size, &error);
 		if(!valid)
 		{
-			printf("(log_sequence_number="); print_log_seq_nr(log_sequence_number); printf(") (valid=%d) (error=%d)\n\n", valid, error);
+			printf("(log_sequence_number="); print_large_uint(log_sequence_number); printf(") (valid=%d) (error=%d)\n\n", valid, error);
 			exit(-1);
 		}
-		log_seq_nr prev_log_sequence_number = get_prev_log_sequence_number_of(&walE, log_sequence_number, &error);
+		large_uint prev_log_sequence_number = get_prev_log_sequence_number_of(&walE, log_sequence_number, &error);
 		if(error)
 			printf("error = %d\n", error);
-		log_seq_nr next_log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, &error);
+		large_uint next_log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, &error);
 		if(error)
 			printf("error = %d\n", error);
 		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size, &error);
 		if(error)
 			printf("error = %d\n", error);
-		printf("(log_sequence_number="); print_log_seq_nr(log_sequence_number); printf(") (prev="); print_log_seq_nr(prev_log_sequence_number); printf(") (next="); print_log_seq_nr(next_log_sequence_number); printf(") (size = %u): <%s>\n", log_record_size, log_record);
+		printf("(log_sequence_number="); print_large_uint(log_sequence_number); printf(") (prev="); print_large_uint(prev_log_sequence_number); printf(") (next="); print_large_uint(next_log_sequence_number); printf(") (size = %u): <%s>\n", log_record_size, log_record);
 		free(log_record);
 		log_sequence_number = next_log_sequence_number;
 	}
-	printf("last_flushed_log_sequence_numbers = "); print_log_seq_nr(get_last_flushed_log_sequence_number(&walE)); printf("\n\n");
+	printf("last_flushed_log_sequence_numbers = "); print_large_uint(get_last_flushed_log_sequence_number(&walE)); printf("\n\n");
 }
 
 int main()

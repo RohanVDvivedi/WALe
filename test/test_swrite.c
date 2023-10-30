@@ -27,33 +27,33 @@ void append_test_log()
 	uint32_t ls = (((unsigned int)rand()) % strlen(NUMBERS));
 	sprintf(log_buffer, LOG_FORMAT, ls, ls, NUMBERS);
 	int error = 0;
-	log_seq_nr log_sequence_number = append_log_record(&walE, log_buffer, strlen(log_buffer) + 1, 0, &error);
-	printf("log sequence number written = "); print_log_seq_nr(log_sequence_number); printf(" : %s : error -> %d\n\n", log_buffer, error);
+	large_uint log_sequence_number = append_log_record(&walE, log_buffer, strlen(log_buffer) + 1, 0, &error);
+	printf("log sequence number written = "); print_large_uint(log_sequence_number); printf(" : %s : error -> %d\n\n", log_buffer, error);
 }
 
 void print_all_flushed_logs()
 {
 	int error = 0;
-	log_seq_nr log_sequence_number = get_first_log_sequence_number(&walE);
-	printf("first_log_sequence_numbers = "); print_log_seq_nr(log_sequence_number); printf("\n");
-	printf("check_point_log_sequence_numbers = "); print_log_seq_nr(get_check_point_log_sequence_number(&walE)); printf("\n");
-	while(compare_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) != 0)
+	large_uint log_sequence_number = get_first_log_sequence_number(&walE);
+	printf("first_log_sequence_numbers = "); print_large_uint(log_sequence_number); printf("\n");
+	printf("check_point_log_sequence_numbers = "); print_large_uint(get_check_point_log_sequence_number(&walE)); printf("\n");
+	while(compare_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) != 0)
 	{
 		uint32_t log_record_size;
 		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size, &error);
 		if(error)
 			printf("error = %d\n", error);
-		log_seq_nr next_log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, &error);
+		large_uint next_log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, &error);
 		if(error)
 			printf("error = %d\n", error);
-		log_seq_nr prev_log_sequence_number = get_prev_log_sequence_number_of(&walE, log_sequence_number, &error);
+		large_uint prev_log_sequence_number = get_prev_log_sequence_number_of(&walE, log_sequence_number, &error);
 		if(error)
 			printf("error = %d\n", error);
-		printf("(log_sequence_number="); print_log_seq_nr(log_sequence_number); printf(") (prev="); print_log_seq_nr(prev_log_sequence_number); printf(") (next="); print_log_seq_nr(next_log_sequence_number); printf(") (size = %u): <%s>\n", log_record_size, log_record);
+		printf("(log_sequence_number="); print_large_uint(log_sequence_number); printf(") (prev="); print_large_uint(prev_log_sequence_number); printf(") (next="); print_large_uint(next_log_sequence_number); printf(") (size = %u): <%s>\n", log_record_size, log_record);
 		free(log_record);
 		log_sequence_number = next_log_sequence_number;
 	}
-	printf("last_flushed_log_sequence_numbers = "); print_log_seq_nr(get_last_flushed_log_sequence_number(&walE)); printf("\n\n");
+	printf("last_flushed_log_sequence_numbers = "); print_large_uint(get_last_flushed_log_sequence_number(&walE)); printf("\n\n");
 }
 
 int main()
@@ -68,7 +68,7 @@ int main()
 	}
 
 	int init_error = 0;
-	if(!initialize_wale(&walE, 3, (new_file ? get_log_seq_nr(7) : INVALID_LOG_SEQUENCE_NUMBER), NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT, &init_error))
+	if(!initialize_wale(&walE, 3, (new_file ? get_large_uint(7) : INVALID_LOG_SEQUENCE_NUMBER), NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT, &init_error))
 	{
 		printf("failed to create wale instance wale_erro = %d (error = %d on fd = %d)\n", init_error, errno, bf.file_descriptor);
 		close_block_file(&bf);
@@ -79,13 +79,13 @@ int main()
 	append_test_log();
 
 	int error = 0;
-	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE, &error)); printf(" : error -> %d\n\n", error);
+	printf("flushed until = "); print_large_uint(flush_all_log_records(&walE, &error)); printf(" : error -> %d\n\n", error);
 
 	append_test_log();
 
 	print_all_flushed_logs();
 
-	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE, &error)); printf(" : error -> %d\n\n", error);
+	printf("flushed until = "); print_large_uint(flush_all_log_records(&walE, &error)); printf(" : error -> %d\n\n", error);
 
 	print_all_flushed_logs();
 

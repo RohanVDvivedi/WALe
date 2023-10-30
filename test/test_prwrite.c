@@ -32,11 +32,11 @@ int append_test_log(int thread_id, int log_number)
 	uint32_t ls = (((unsigned int)rand()) % strlen(NUMBERS));
 	sprintf(log_buffer, LOG_FORMAT, thread_id, log_number, ls, ls, NUMBERS);
 	int error = 0;
-	log_seq_nr log_sequence_number = append_log_record(&walE, log_buffer, strlen(log_buffer) + 1, 0, &error);
+	large_uint log_sequence_number = append_log_record(&walE, log_buffer, strlen(log_buffer) + 1, 0, &error);
 	#ifdef DEBUG_PRINT_LOG_BUFFER
-		printf("log_sequence_number = "); print_log_seq_nr(log_sequence_number); printf(" ::: %s : error -> %d\n\n", log_buffer, error);
+		printf("log_sequence_number = "); print_large_uint(log_sequence_number); printf(" ::: %s : error -> %d\n\n", log_buffer, error);
 	#endif
-	if(compare_log_seq_nr(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
+	if(compare_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) == 0)
 	{
 		printf("failed to append to wale : error -> %d\n", error);
 		exit(-1);
@@ -68,11 +68,11 @@ void* append_logs(void* tid)
 		if(log_number % FLUSH_EVERY_LOGS_PER_THREAD == 0)
 		{
 			int error = 0;
-			log_seq_nr flushed_until = flush_all_log_records(&walE, &error);
+			large_uint flushed_until = flush_all_log_records(&walE, &error);
 			#ifdef DEBUG_PRINT_LOG_BUFFER
-				printf("flushed until = "); print_log_seq_nr(flushed_until); printf(" by %d : error -> %d\n\n", thread_id, error);
+				printf("flushed until = "); print_large_uint(flushed_until); printf(" by %d : error -> %d\n\n", thread_id, error);
 			#endif
-			if(compare_log_seq_nr(flushed_until, INVALID_LOG_SEQUENCE_NUMBER) == 0)
+			if(compare_large_uint(flushed_until, INVALID_LOG_SEQUENCE_NUMBER) == 0)
 			{
 				printf("failed to flush logs from wale\n");
 				exit(-1);
@@ -93,7 +93,7 @@ int main()
 	}
 
 	int init_error = 0;
-	if(!initialize_wale(&walE, 12, (new_file ? get_log_seq_nr(7) : INVALID_LOG_SEQUENCE_NUMBER), NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT, &init_error))
+	if(!initialize_wale(&walE, 12, (new_file ? get_large_uint(7) : INVALID_LOG_SEQUENCE_NUMBER), NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT, &init_error))
 	{
 		printf("failed to create wale instance wale_erro = %d (error = %d on fd = %d)\n", init_error, errno, bf.file_descriptor);
 		close_block_file(&bf);
@@ -114,7 +114,7 @@ int main()
 	delete_executor(exe);
 
 	int error = 0;
-	printf("flushed until = "); print_log_seq_nr(flush_all_log_records(&walE, &error)); printf(" : error -> %d\n\n", error);
+	printf("flushed until = "); print_large_uint(flush_all_log_records(&walE, &error)); printf(" : error -> %d\n\n", error);
 
 	deinitialize_wale(&walE);
 
