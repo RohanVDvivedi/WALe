@@ -2,7 +2,7 @@
 
 #include<crc32_util.h>
 
-#include<read_write_int.h>
+#include<serial_int.h>
 
 #include<stdlib.h>
 
@@ -24,7 +24,7 @@ int read_master_record(master_record* mr, const block_io_ops* block_io_functions
 	}
 
 	// deserialize
-	mr->log_sequence_number_width = read_uint32(mr_serial, sizeof(uint32_t));
+	mr->log_sequence_number_width = deserialize_uint32(mr_serial, sizeof(uint32_t));
 
 	if(mr->log_sequence_number_width == 0 || mr->log_sequence_number_width > LARGE_UINT_MAX_BYTES)
 	{
@@ -38,7 +38,7 @@ int read_master_record(master_record* mr, const block_io_ops* block_io_functions
 	mr->check_point_log_sequence_number = deserialize_large_uint(mr_serial + sizeof(uint32_t) + 2 * mr->log_sequence_number_width, mr->log_sequence_number_width);
 	mr->next_log_sequence_number = deserialize_large_uint(mr_serial + sizeof(uint32_t) + 3 * mr->log_sequence_number_width, mr->log_sequence_number_width);
 
-	uint32_t parsed_crc32 = read_uint32(mr_serial + sizeof(uint32_t) + 4 * mr->log_sequence_number_width, sizeof(uint32_t));
+	uint32_t parsed_crc32 = deserialize_uint32(mr_serial + sizeof(uint32_t) + 4 * mr->log_sequence_number_width, sizeof(uint32_t));
 
 	// calculate crc32 for master record, NOTE :: we can not calculate crc32 without reading the log_sequence_number_width
 	uint32_t calculated_crc32 = crc32_init();
@@ -65,7 +65,7 @@ int write_and_flush_master_record(const master_record* mr, const block_io_ops* b
 	}
 
 	// serialize
-	write_uint32(mr_serial, sizeof(uint32_t), mr->log_sequence_number_width);
+	serialize_uint32(mr_serial, sizeof(uint32_t), mr->log_sequence_number_width);
 	serialize_large_uint(mr_serial + sizeof(uint32_t), mr->log_sequence_number_width, mr->first_log_sequence_number);
 	serialize_large_uint(mr_serial + sizeof(uint32_t) + mr->log_sequence_number_width, mr->log_sequence_number_width, mr->last_flushed_log_sequence_number);
 	serialize_large_uint(mr_serial + sizeof(uint32_t) + 2 * mr->log_sequence_number_width, mr->log_sequence_number_width, mr->check_point_log_sequence_number);
@@ -76,7 +76,7 @@ int write_and_flush_master_record(const master_record* mr, const block_io_ops* b
 	calculated_crc32 = crc32_util(calculated_crc32, mr_serial, sizeof(uint32_t) + 4 * mr->log_sequence_number_width);
 
 	// write calculated_crc32 on the mr_serial
-	write_uint32(mr_serial + sizeof(uint32_t) + 4 * mr->log_sequence_number_width, sizeof(uint32_t), calculated_crc32);
+	serialize_uint32(mr_serial + sizeof(uint32_t) + 4 * mr->log_sequence_number_width, sizeof(uint32_t), calculated_crc32);
 
 	int io_success = block_io_functions->write_blocks(block_io_functions->block_io_ops_handle, mr_serial, 0, 1)
 						&& block_io_functions->flush_all_writes(block_io_functions->block_io_ops_handle);
