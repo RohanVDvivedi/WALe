@@ -1,6 +1,6 @@
 FUTURE
  * add functionality for discarding_unflushed_logs
- 	-> only available if the wale is opened in write mode, append_only_buffer_block_count != 0
+ 	-> only available if the wale is opened in write mode, buffer_block_count != 0
  	-> it moves on_disk_master_record to in_memory_master_record
  	-> and copies partial buffer onto the first block of the append_only_buffer and sets append_offset appropriately
  * test case for concurrent log truncation

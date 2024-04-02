@@ -30,7 +30,7 @@
 	};
 
 	There is a different crc32 for the header and the log_record,
-	This allows us to quicly travers th log records in forward or backward using the information only in the header.
+	This allows us to quickly traverse the log records in forward or backward direction using the information only in the header.
 */
 
 typedef struct master_record master_record;
@@ -96,7 +96,7 @@ struct wale
 	// a shared/exclusive lock for protecting only the contents of the append only buffer
 	rwlock append_only_buffer_lock;
 
-	// number of blocks pointed to by buffer, this is fixed for most part
+	// number of blocks pointed to by buffer, this is fixed for most part, unless you call modify_append_only_buffer_block_count()
 	// protected by global lock (get_wale_lock(wale_p))
 	uint64_t buffer_block_count;
 
