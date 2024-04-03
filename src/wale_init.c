@@ -79,8 +79,8 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, large_uint
 			uint64_t file_offset_to_append_from;
 			{
 				large_uint temp; // = next_log_sequence_number - first_log_sequence_number + block_size
-				if(	(!sub_large_uint(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.first_log_sequence_number)) ||
-					(!add_large_uint(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN)) ||
+				if(	(!sub_large_uint_underflow_safe(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.first_log_sequence_number)) ||
+					(!add_large_uint_overflow_safe(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN)) ||
 					(!cast_large_uint_to_uint64(&file_offset_to_append_from, temp)) )
 				{
 					// this implies master record is corrupted

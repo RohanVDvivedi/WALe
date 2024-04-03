@@ -11,7 +11,7 @@
 #include<large_uint.h>
 
 // 0 log sequence number will never show up in the wal file
-#define INVALID_LOG_SEQUENCE_NUMBER LARGE_UINT_MIN
+#define INVALID_LOG_SEQUENCE_NUMBER LARGE_UINT_ZERO
 
 /*
 	Each log record has the following format.

@@ -167,8 +167,8 @@ large_uint get_next_log_sequence_number_of(wale* wale_p, large_uint log_sequence
 	uint64_t file_offset_of_log_record; // = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 	{
 		large_uint temp;
-		if(	!sub_large_uint(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
-			!add_large_uint(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN) ||
+		if(	!sub_large_uint_underflow_safe(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
+			!add_large_uint_overflow_safe(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN) ||
 			!cast_large_uint_to_uint64(&file_offset_of_log_record, temp))
 		{
 			// this case will not ever happen, but just so to handle it
@@ -184,7 +184,7 @@ large_uint get_next_log_sequence_number_of(wale* wale_p, large_uint log_sequence
 	uint64_t total_size_curr_log_record = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 4 for crc32 of the log record itself and 4 for crc32 of the header
 
 	// the next_log_sequence_number is right after this log_record
-	if(!add_large_uint(&next_log_sequence_number, log_sequence_number, get_large_uint(total_size_curr_log_record), wale_p->max_limit))
+	if(!add_large_uint_overflow_safe(&next_log_sequence_number, log_sequence_number, get_large_uint(total_size_curr_log_record), wale_p->max_limit))
 	{
 		(*error) = HEADER_CORRUPTED;
 		goto EXIT;
@@ -231,8 +231,8 @@ large_uint get_prev_log_sequence_number_of(wale* wale_p, large_uint log_sequence
 	uint64_t file_offset_of_log_record; // = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 	{
 		large_uint temp;
-		if(	!sub_large_uint(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
-			!add_large_uint(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN) ||
+		if(	!sub_large_uint_underflow_safe(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
+			!add_large_uint_overflow_safe(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN) ||
 			!cast_large_uint_to_uint64(&file_offset_of_log_record, temp))
 		{
 			// this case will not ever happen, but just so to handle it
@@ -250,7 +250,7 @@ large_uint get_prev_log_sequence_number_of(wale* wale_p, large_uint log_sequence
 	// the prev_log_sequence_number is right before this one
 	// it can not be equal to the total_size_prev_record, else prev_log_sequence_number will become 0, i.e. INVALID_LOG_SEQUENCE_NUMBER
 	if(are_equal_large_uint(log_sequence_number, get_large_uint(total_size_prev_log_record)) ||
-		!sub_large_uint(&prev_log_sequence_number, log_sequence_number, get_large_uint(total_size_prev_log_record)))
+		!sub_large_uint_underflow_safe(&prev_log_sequence_number, log_sequence_number, get_large_uint(total_size_prev_log_record)))
 	{
 		(*error) = HEADER_CORRUPTED;
 		goto EXIT;
@@ -293,8 +293,8 @@ void* get_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_t* 
 	uint64_t file_offset_of_log_record; // = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 	{
 		large_uint temp;
-		if(	!sub_large_uint(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
-			!add_large_uint(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN) ||
+		if(	!sub_large_uint_underflow_safe(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
+			!add_large_uint_overflow_safe(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN) ||
 			!cast_large_uint_to_uint64(&file_offset_of_log_record, temp))
 		{
 			// this case will not ever happen, but just so to handle it
@@ -312,7 +312,7 @@ void* get_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_t* 
 
 	// make sure that the next_log_sequence_number of this log_record does not overflow
 	large_uint next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
-	if(!add_large_uint(&next_log_sequence_number, log_sequence_number, get_large_uint(total_log_size), wale_p->max_limit))
+	if(!add_large_uint_overflow_safe(&next_log_sequence_number, log_sequence_number, get_large_uint(total_log_size), wale_p->max_limit))
 	{
 		(*error) = PARAM_INVALID;
 		goto EXIT;
@@ -399,8 +399,8 @@ int validate_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_
 	uint64_t file_offset_of_log_record; // = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 	{
 		large_uint temp;
-		if(	!sub_large_uint(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
-			!add_large_uint(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN) ||
+		if(	!sub_large_uint_underflow_safe(&temp, log_sequence_number, wale_p->on_disk_master_record.first_log_sequence_number) ||
+			!add_large_uint_overflow_safe(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN) ||
 			!cast_large_uint_to_uint64(&file_offset_of_log_record, temp))
 		{
 			// this case will not ever happen, but just so to handle it
@@ -418,7 +418,7 @@ int validate_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_
 
 	// make sure that the next_log_sequence_number of this log_record does not overflow
 	large_uint next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
-	if(!add_large_uint(&next_log_sequence_number, log_sequence_number, get_large_uint(total_log_size), wale_p->max_limit))
+	if(!add_large_uint_overflow_safe(&next_log_sequence_number, log_sequence_number, get_large_uint(total_log_size), wale_p->max_limit))
 	{
 		(*error) = PARAM_INVALID;
 		goto EXIT;
@@ -503,7 +503,7 @@ static large_uint get_log_sequence_number_for_next_log_record_and_advance_master
 	// we do not advance the master record, if the next_log_sequence_number overflows
 	large_uint log_sequence_number = wale_p->in_memory_master_record.next_log_sequence_number;
 	large_uint new_next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
-	if(!add_large_uint(&(new_next_log_sequence_number), wale_p->in_memory_master_record.next_log_sequence_number, get_large_uint(total_log_record_slot_size), wale_p->max_limit))
+	if(!add_large_uint_overflow_safe(&(new_next_log_sequence_number), wale_p->in_memory_master_record.next_log_sequence_number, get_large_uint(total_log_record_slot_size), wale_p->max_limit))
 	{
 		(*error) = LOG_SEQUENCE_NUMBER_OVERFLOW;
 		return INVALID_LOG_SEQUENCE_NUMBER;
@@ -515,7 +515,7 @@ static large_uint get_log_sequence_number_for_next_log_record_and_advance_master
 		uint64_t prev_log_record_total_size;
 		{
 			large_uint temp;
-			if(!sub_large_uint(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.last_flushed_log_sequence_number) ||
+			if(!sub_large_uint_underflow_safe(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.last_flushed_log_sequence_number) ||
 				!cast_large_uint_to_uint64(&prev_log_record_total_size, temp))
 				return INVALID_LOG_SEQUENCE_NUMBER;
 
@@ -632,7 +632,7 @@ large_uint append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 			uint64_t offset_from_first_log_sequence_number;// = wale_p->in_memory_master_record.next_log_sequence_number - wale_p->in_memory_master_record.first_log_sequence_number;
 			{
 				large_uint temp;
-				if(!sub_large_uint(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.first_log_sequence_number) ||
+				if(!sub_large_uint_underflow_safe(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.first_log_sequence_number) ||
 					!cast_large_uint_to_uint64(&offset_from_first_log_sequence_number, temp))
 				{
 					// this must never happen, if it happens just fail
