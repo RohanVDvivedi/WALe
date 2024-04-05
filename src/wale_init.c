@@ -67,40 +67,11 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, large_uint
 			return 0;
 		}
 
-		// there are no log records on the disk, if the first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER
-		if(are_equal_large_uint(wale_p->in_memory_master_record.first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+		wale_p->append_offset = read_latest_vacant_block_using_master_record(&(wale_p->buffer_start_block_id), wale_p->buffer, &(wale_p->in_memory_master_record), &(wale_p->block_io_functions), error);
+		if(*error)
 		{
-			wale_p->append_offset = 0;
-			wale_p->buffer_start_block_id = 1;
-		}
-		else // else read appropriate first block from memory
-		{
-			// calculate file_offset to start appending from
-			uint64_t file_offset_to_append_from;
-			{
-				large_uint temp; // = next_log_sequence_number - first_log_sequence_number + block_size
-				if(	(!sub_large_uint_underflow_safe(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.first_log_sequence_number)) ||
-					(!add_large_uint_overflow_safe(&temp, temp, get_large_uint(wale_p->block_io_functions.block_size), LARGE_UINT_MIN)) ||
-					(!cast_large_uint_to_uint64(&file_offset_to_append_from, temp)) )
-				{
-					// this implies master record is corrupted
-					free(wale_p->buffer);
-					return 0;
-				}
-			}
-
-			wale_p->append_offset = file_offset_to_append_from % wale_p->block_io_functions.block_size;
-			wale_p->buffer_start_block_id = UINT_ALIGN_DOWN(file_offset_to_append_from, wale_p->block_io_functions.block_size) / wale_p->block_io_functions.block_size;
-
-			if(wale_p->append_offset)
-			{
-				if(!wale_p->block_io_functions.read_blocks(wale_p->block_io_functions.block_io_ops_handle, wale_p->buffer, wale_p->buffer_start_block_id, 1))
-				{
-					(*error) = READ_IO_ERROR;
-					free(wale_p->buffer);
-					return 0;
-				}
-			}
+			free(wale_p->buffer);
+			return 0;
 		}
 	}
 
