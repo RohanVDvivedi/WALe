@@ -1,9 +1,8 @@
 FUTURE
- * add a utility function for master_record, to read last partial tail block into given buffer and return the valid bytes in the tail block, and use it where ever necessary
  * add functionality to int discard_unflushed_log_records(wale* wale_p, int* error)
    * copy on_disk_master_record to in_memory_master_record
-   * read the last partially written block from the disk
-   * write a function to read partially written block if any, using the master record struct and put it onto a given buffer
+   * read the last partially written block from the disk into append only buffer
+   * modify start_block_id, append_offset accordingly
  * test case for concurrent log truncation
  * build a new project Filed_WALe -> WALe that manages multiple WALe files (named 0 to 2^64-1) of fixed maximum sizes (lets say (more than 32 MB ofcourse) 128 MB each), each new one starting at the next log_seq_nr of the previous number, and with file name 1 more than a previous number (and with extension .log). and WALe structs for which are managed as cutlery array. and an API which suggests the last log record of concern, so that WALe can trash old log files.
  * build a Filed_WALe_TS -> FiledWALe extended with redo and undo, and log serialization functions for TupleStore, with api similar to Page Modification functions.
