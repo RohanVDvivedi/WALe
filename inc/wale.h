@@ -178,7 +178,7 @@ int validate_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_
 #define MAJOR_SCROLL_ERROR                   8 // major scroll error occurred while scrolling the appendonly buffer, this is an error you can not recover from, your only alternative is to close the WALe and re open it, and to loose some unflushed log records
 #define HEADER_CORRUPTED                     9 // CRC-32 checksum of log header check failed
 #define LOG_RECORD_CORRUPTED                10 // CRC-32 checksum of log record check failed
-#define MASTER_RECORD_CORRUPTED             11 // CRC-32 checksum of master record check failed
+#define MASTER_RECORD_CORRUPTED             11 // CRC-32 checksum of master record check failed, OR the contents of master record are illogical
 
 // -------------------------------------------------------------
 
