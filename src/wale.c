@@ -4,7 +4,7 @@
 #include<crc32_util.h>
 #include<util_random_read.h>
 #include<util_append_only_buffer.h>
-#include<util_master_record_io.h>
+#include<util_master_record.h>
 
 #include<rwlock.h>
 

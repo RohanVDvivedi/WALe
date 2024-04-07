@@ -1,7 +1,7 @@
 #include<util_append_only_buffer.h>
 
 #include<wale_get_lock_util.h>
-#include<util_master_record_io.h>
+#include<util_master_record.h>
 
 #include<cutlery_stds.h>
 

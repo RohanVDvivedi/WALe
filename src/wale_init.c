@@ -1,7 +1,7 @@
 #include<wale.h>
 
 #include<wale_get_lock_util.h>
-#include<util_master_record_io.h>
+#include<util_master_record.h>
 
 #include<stdlib.h>
 
