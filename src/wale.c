@@ -251,7 +251,7 @@ void* get_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_t* 
 	if(are_equal_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 	{
 		(*error) = PARAM_INVALID;
-		return INVALID_LOG_SEQUENCE_NUMBER;
+		return NULL;
 	}
 
 	// initialize error to no error
@@ -345,7 +345,7 @@ int validate_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_
 	if(are_equal_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 	{
 		(*error) = PARAM_INVALID;
-		return INVALID_LOG_SEQUENCE_NUMBER;
+		return 0;
 	}
 
 	// initialize error to no error
