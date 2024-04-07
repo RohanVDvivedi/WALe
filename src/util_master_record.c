@@ -118,7 +118,8 @@ uint64_t read_latest_vacant_block_using_master_record(void* buffer, const master
 uint64_t get_file_offset_for_log_sequence_number(large_uint log_sequence_number, const master_record* mr, const block_io_ops* block_io_functions, int* error)
 {
 	// if the wale has no records, OR the log_sequence_number is not within first and last_flushed log_sequence_number then fail
-	if(are_equal_large_uint(mr->first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
+	if( are_equal_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
+		are_equal_large_uint(mr->first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
 		compare_large_uint(log_sequence_number, mr->first_log_sequence_number) < 0 ||
 		compare_large_uint(mr->last_flushed_log_sequence_number, log_sequence_number) < 0
 		)
