@@ -131,3 +131,57 @@ uint64_t read_latest_vacant_block_using_master_record(uint64_t* block_id, void* 
 		return bytes_to_read;
 	}
 }
+
+uint64_t get_file_offset_for_log_sequence_number(large_uint log_sequence_number, const master_record* mr, const block_io_ops* block_io_functions, int* error)
+{
+	// if the wale has no records, OR the log_sequence_number is not within first and last_flushed log_sequence_number then fail
+	if(are_equal_large_uint(mr->first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
+		compare_large_uint(log_sequence_number, mr->first_log_sequence_number) < 0 ||
+		compare_large_uint(mr->last_flushed_log_sequence_number, log_sequence_number) < 0
+		)
+	{
+		(*error) = PARAM_INVALID;
+		return 0;
+	}
+
+	// calculate the offset in file of the log_record at log_sequence_number
+	uint64_t file_offset; // = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
+	{
+		large_uint temp;
+		if(	!sub_large_uint_underflow_safe(&temp, log_sequence_number, mr->first_log_sequence_number) ||
+			!add_large_uint_overflow_safe(&temp, temp, get_large_uint(block_io_functions->block_size), LARGE_UINT_ZERO) ||
+			!cast_large_uint_to_uint64(&file_offset, temp))
+		{
+			// this case will not ever happen, but just so to handle it
+			(*error) = PARAM_INVALID;
+			return 0;
+		}
+	}
+
+	return file_offset;
+}
+
+uint64_t get_file_offset_for_next_log_sequence_number(const master_record* mr, const block_io_ops* block_io_functions, int* error)
+{
+	// there are no log records on the disk, if the first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER
+	// then next_log_sequence_number is at the file_offset
+	if(are_equal_large_uint(mr->first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+		return block_io_functions->block_size;
+
+	// calculate file_offset of next_log_sequence_number
+	// = next_log_sequence_number - first_log_sequence_number + block_size
+	uint64_t file_offset;
+	{
+		large_uint temp; // = next_log_sequence_number - first_log_sequence_number + block_size
+		if(	(!sub_large_uint_underflow_safe(&temp, mr->next_log_sequence_number, mr->first_log_sequence_number)) ||
+			(!add_large_uint_overflow_safe(&temp, temp, get_large_uint(block_io_functions->block_size), LARGE_UINT_ZERO)) ||
+			(!cast_large_uint_to_uint64(&file_offset, temp)) )
+		{
+			// this implies master record is corrupted
+			(*error) = MASTER_RECORD_CORRUPTED;
+			return 0;
+		}
+	}
+
+	return file_offset;
+}
