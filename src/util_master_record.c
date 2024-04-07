@@ -1,5 +1,6 @@
 #include<util_master_record.h>
 
+#include<block_io_ops_util.h>
 #include<crc32_util.h>
 
 #include<serial_int.h>
@@ -94,42 +95,24 @@ int write_and_flush_master_record(const master_record* mr, const block_io_ops* b
 
 uint64_t read_latest_vacant_block_using_master_record(void* buffer, const master_record* mr, const block_io_ops* block_io_functions, int* error)
 {
-	// there are no log records on the disk, if the first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER
-	if(are_equal_large_uint(mr->first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
-	{
-		(*block_id) = 1;
+	// calculate file_offset of next_log_sequence_number
+	uint64_t file_offset = get_file_offset_for_next_log_sequence_number(mr, block_io_functions, error);
+	if(*error)
 		return 0;
-	}
-	else // else read appropriate latest vacant block from disk
+
+	uint64_t bytes_to_read = get_block_offset_from_file_offset(file_offset, block_io_functions);
+	uint64_t block_id = get_block_id_from_file_offset(file_offset, block_io_functions);
+
+	if(bytes_to_read > 0)
 	{
-		// calculate file_offset of next_log_sequence_number
-		uint64_t file_offset;
+		if(!block_io_functions->read_blocks(block_io_functions->block_io_ops_handle, buffer, block_id, 1))
 		{
-			large_uint temp; // = next_log_sequence_number - first_log_sequence_number + block_size
-			if(	(!sub_large_uint_underflow_safe(&temp, mr->next_log_sequence_number, mr->first_log_sequence_number)) ||
-				(!add_large_uint_overflow_safe(&temp, temp, get_large_uint(block_io_functions->block_size), LARGE_UINT_ZERO)) ||
-				(!cast_large_uint_to_uint64(&file_offset, temp)) )
-			{
-				// this implies master record is corrupted
-				(*error) = MASTER_RECORD_CORRUPTED;
-				return 0;
-			}
+			(*error) = READ_IO_ERROR;
+			return 0;
 		}
-
-		uint64_t bytes_to_read = file_offset % block_io_functions->block_size;
-		(*block_id) = UINT_ALIGN_DOWN(file_offset, block_io_functions->block_size) / block_io_functions->block_size;
-
-		if(bytes_to_read > 0)
-		{
-			if(!block_io_functions->read_blocks(block_io_functions->block_io_ops_handle, buffer, (*block_id), 1))
-			{
-				(*error) = READ_IO_ERROR;
-				return 0;
-			}
-		}
-
-		return bytes_to_read;
 	}
+
+	return file_offset;
 }
 
 uint64_t get_file_offset_for_log_sequence_number(large_uint log_sequence_number, const master_record* mr, const block_io_ops* block_io_functions, int* error)
