@@ -2,6 +2,7 @@
 
 #include<wale_get_lock_util.h>
 #include<util_master_record.h>
+#include<block_io_ops_util.h>
 
 #include<cutlery_stds.h>
 
@@ -102,12 +103,15 @@ int resize_append_only_buffer(wale* wale_p, uint64_t new_buffer_block_count, int
 
 		read_unlock(&(wale_p->flushed_log_records_lock));
 
-		wale_p->append_offset = read_latest_vacant_block_using_master_record(&(wale_p->buffer_start_block_id), new_buffer, &(wale_p->in_memory_master_record), &(wale_p->block_io_functions), error);
+		uint64_t file_offset_for_next_log_sequence_number = read_latest_vacant_block_using_master_record(new_buffer, &(wale_p->in_memory_master_record), &(wale_p->block_io_functions), error);
 		if(*error)
 		{
 			free(new_buffer);
 			return 0;
 		}
+
+		wale_p->buffer_start_block_id = get_block_id_from_file_offset(file_offset_for_next_log_sequence_number, &(wale_p->block_io_functions));
+		wale_p->append_offset = get_block_offset_from_file_offset(file_offset_for_next_log_sequence_number, &(wale_p->block_io_functions));
 		wale_p->buffer = new_buffer;
 		wale_p->buffer_block_count = new_buffer_block_count;
 
