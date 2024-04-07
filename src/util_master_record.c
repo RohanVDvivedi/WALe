@@ -92,7 +92,7 @@ int write_and_flush_master_record(const master_record* mr, const block_io_ops* b
 	return 1;
 }
 
-uint64_t read_latest_vacant_block_using_master_record(uint64_t* block_id, void* buffer, const master_record* mr, const block_io_ops* block_io_functions, int* error)
+uint64_t read_latest_vacant_block_using_master_record(void* buffer, const master_record* mr, const block_io_ops* block_io_functions, int* error)
 {
 	// there are no log records on the disk, if the first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER
 	if(are_equal_large_uint(mr->first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
