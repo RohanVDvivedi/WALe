@@ -39,7 +39,7 @@ int random_read_at(void* buffer, uint64_t buffer_size, uint64_t file_offset, con
 
 #include<crc32_util.h>
 
-// this function is implemented with minimal
+// this function is implemented with minimal memory usage
 int crc32_at(uint32_t* crc, uint64_t data_size, uint64_t file_offset, const block_io_ops* block_io_functions)
 {
 	if(data_size == 0)
