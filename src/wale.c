@@ -141,6 +141,13 @@ static int parse_and_check_crc32_for_log_record_header_at(log_record_header* res
 
 large_uint get_next_log_sequence_number_of(wale* wale_p, large_uint log_sequence_number, int* error)
 {
+	// primary check, you may never provide INVALID_LOG_SEQUENCE_NUMBER
+	if(are_equal_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+	{
+		(*error) = PARAM_INVALID;
+		return INVALID_LOG_SEQUENCE_NUMBER;
+	}
+
 	// initialize error to no error
 	(*error) = NO_ERROR;
 
@@ -186,6 +193,13 @@ large_uint get_next_log_sequence_number_of(wale* wale_p, large_uint log_sequence
 
 large_uint get_prev_log_sequence_number_of(wale* wale_p, large_uint log_sequence_number, int* error)
 {
+	// primary check, you may never provide INVALID_LOG_SEQUENCE_NUMBER
+	if(are_equal_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+	{
+		(*error) = PARAM_INVALID;
+		return INVALID_LOG_SEQUENCE_NUMBER;
+	}
+
 	// initialize error to no error
 	(*error) = NO_ERROR;
 
@@ -233,6 +247,13 @@ large_uint get_prev_log_sequence_number_of(wale* wale_p, large_uint log_sequence
 
 void* get_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_t* log_record_size, int* error)
 {
+	// primary check, you may never provide INVALID_LOG_SEQUENCE_NUMBER
+	if(are_equal_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+	{
+		(*error) = PARAM_INVALID;
+		return INVALID_LOG_SEQUENCE_NUMBER;
+	}
+
 	// initialize error to no error
 	(*error) = NO_ERROR;
 
@@ -320,6 +341,13 @@ void* get_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_t* 
 
 int validate_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_t* log_record_size, int* error)
 {
+	// primary check, you may never provide INVALID_LOG_SEQUENCE_NUMBER
+	if(are_equal_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+	{
+		(*error) = PARAM_INVALID;
+		return INVALID_LOG_SEQUENCE_NUMBER;
+	}
+
 	// initialize error to no error
 	(*error) = NO_ERROR;
 
