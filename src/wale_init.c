@@ -2,6 +2,7 @@
 
 #include<wale_get_lock_util.h>
 #include<util_master_record.h>
+#include<block_io_ops_util.h>
 
 #include<stdlib.h>
 
@@ -67,12 +68,15 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, large_uint
 			return 0;
 		}
 
-		wale_p->append_offset = read_latest_vacant_block_using_master_record(&(wale_p->buffer_start_block_id), wale_p->buffer, &(wale_p->in_memory_master_record), &(wale_p->block_io_functions), error);
+		uint64_t file_offset_for_next_log_sequence_number = read_latest_vacant_block_using_master_record(wale_p->buffer, &(wale_p->in_memory_master_record), &(wale_p->block_io_functions), error);
 		if(*error)
 		{
 			free(wale_p->buffer);
 			return 0;
 		}
+
+		wale_p->buffer_start_block_id = get_block_id_from_file_offset(file_offset_for_next_log_sequence_number, &(wale_p->block_io_functions));
+		wale_p->append_offset = get_block_offset_from_file_offset(file_offset_for_next_log_sequence_number, &(wale_p->block_io_functions));
 	}
 
 	return 1;
