@@ -49,7 +49,7 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, large_uint
 	initialize_rwlock(&(wale_p->flushed_log_records_lock), get_wale_lock(wale_p));
 	initialize_rwlock(&(wale_p->append_only_buffer_lock), get_wale_lock(wale_p));
 
-	wale_p->max_limit = LARGE_UINT_MIN;
+	wale_p->max_limit = LARGE_UINT_ZERO;
 	set_bit_in_large_uint(&(wale_p->max_limit), wale_p->in_memory_master_record.log_sequence_number_width * CHAR_BIT);
 
 	if(append_only_block_count == 0) // WALe is opened only for reading
