@@ -1,8 +1,16 @@
 FUTURE
  * add functionality to int discard_unflushed_log_records(wale* wale_p, int* error)
+   * take wale_lock if internal
+   * ensure that buffer_block_count != 0
+   * take exclusive_lock on the append_only_buffer_lock
+   * take read_lock on flushed_log_records_lock
    * copy on_disk_master_record to in_memory_master_record
+   * release read_lock on flushed_log_records_lock
    * read the last partially written block from the disk into append only buffer
    * modify start_block_id, append_offset accordingly
+   * release exclusive_lock on the append_only_buffer_lock
+   * broadcast wait_for_scroll
+   * release wale_lock if internal
  * ensure that file_offset + total_log_size -> does not overflow 64 bit integer while appending the log, more precisely while you are reserving a slot for your log record
  * test case for concurrent log truncation
  * build a new project Filed_WALe -> WALe that manages multiple WALe files (named 0 to 2^64-1) of fixed maximum sizes (lets say (more than 32 MB ofcourse) 128 MB each), each new one starting at the next log_seq_nr of the previous number, and with file name 1 more than a previous number (and with extension .log). and WALe structs for which are managed as cutlery array. and an API which suggests the last log record of concern, so that WALe can trash old log files.
