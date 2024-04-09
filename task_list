@@ -1,5 +1,5 @@
 FUTURE
- * locking requirements
+ * locking conventions finalization, and redundancy removal
    * all of the append_only_buffer contents are locked by append_only_buffer_lock
      * this includes buffer, buffer_block_count and buffer_start_block_id
    * append_offset needs to be locked with global_mutex just like the in_memory_master_record
