@@ -6,7 +6,7 @@ FUTURE
    * take read_lock on flushed_log_records_lock
    * copy on_disk_master_record to in_memory_master_record
    * release read_lock on flushed_log_records_lock
-   * read the last partially written block from the disk into append only buffer
+   * read the last partially written block from the disk into append only buffer, using in_memory_master_record
    * modify start_block_id, append_offset accordingly
    * release exclusive_lock on the append_only_buffer_lock
    * broadcast wait_for_scroll
