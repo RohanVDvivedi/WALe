@@ -92,6 +92,9 @@ struct wale
 	// --------------------------------------------------------
 
 	//  below 4 attributes are protected by the global mutex lock (above, external or internal)
+	// This lock ensures that we always read their consistent state
+	// You must try to unlock the global mutex while performing io, to allow other reads and writes to pass through
+	// This project ensures as much concurrency as possible
 
 	// any updates to the master record are made here in memory, this master record must be flushed for changes to be persistent
 	// any append_log_record will diverge the in_memory_master_record, from the on_disk_master_record
