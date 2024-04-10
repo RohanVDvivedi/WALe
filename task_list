@@ -1,19 +1,7 @@
 FUTURE
  * locking conventions finalization, and redundancy removal
-   * all of the append_only_buffer contents are locked by append_only_buffer_lock
-     * this includes buffer, buffer_block_count and buffer_start_block_id
-   * append_offset needs to be locked with global_mutex just like the in_memory_master_record
-   * discard append_offset, as it can be derieved from the in_memory_master_record
-   * new locking constraints for in_memory_master_record
-     * must have append_only_buffer_lock in either shared or exclusive mode to access in_memory_master_record, global lock may or may not be held
-     * locking rules to access in_memory_master_record
-     append_only_buffer_lock  shared exclusive
-     global_lock 
-     held                        R/W    R/W
-     not held                    R      R/W
    * ensure that this locking constraints are applicable throughout the project
    * check if we can release mutex while reseting the append only buffer
- * ensure that file_offset + total_log_size -> does not overflow 64 bit integer while appending the log, more precisely while you are reserving a slot for your log record
  * add error codes to return if there was an APPEND_LOG_CAUSES_FILE_OFFSET_OVERFLOW, APPEND_LOG_CAUSES_LOG_SEQUENCE_NUMBER_OVERFLOW
  * add functionality to int discard_unflushed_log_records(wale* wale_p, int* error)
    * take wale_lock if internal
