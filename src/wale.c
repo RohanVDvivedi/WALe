@@ -816,8 +816,13 @@ int truncate_log_records(wale* wale_p, int* error)
 	// now we also need write lock on the on_disk_master_record, so that we can update it, along with the actual ondisk master record
 	write_lock(&(wale_p->flushed_log_records_lock), BLOCKING);
 
+	// performing io with out the lock
+	pthread_mutex_unlock(get_wale_lock(wale_p));
+
 	int master_record_io_error = 0;
 	truncated_logs = write_and_flush_master_record(&new_master_record, &(wale_p->block_io_functions), &master_record_io_error);
+
+	pthread_mutex_lock(get_wale_lock(wale_p));
 
 	if(truncated_logs)
 	{
@@ -828,6 +833,9 @@ int truncate_log_records(wale* wale_p, int* error)
 		wale_p->in_memory_master_record = new_master_record;
 		wale_p->append_offset = new_append_offset;
 		wale_p->buffer_start_block_id = 1;
+
+		// no contents in the append_only_buffer, hence we can wake up any thread waiting for a scroll
+		pthread_cond_broadcast(&(wale_p->wait_for_scroll));
 	}
 
 	// release both the exclusive locks
