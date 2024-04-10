@@ -566,13 +566,6 @@ large_uint append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
-	// if the buffer block count is 0, then WALe is not in writable state
-	if(wale_p->buffer_block_count == 0)
-	{
-		(*error) = ZERO_BUFFER_BLOCK_COUNT;
-		goto EXIT;
-	}
-
 	// share lock the append_only_buffer, inorder to write data into it at the wale_p->append_offset
 	// we take this lock this early, because we do not want anyone to scroll the append only buffer, after we get a slot in the append only buffer
 	shared_lock(&(wale_p->append_only_buffer_lock), WRITE_PREFERRING, BLOCKING);
@@ -700,16 +693,16 @@ large_uint flush_all_log_records(wale* wale_p, int* error)
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
+	// get exclusive_lock on the append_only_buffer
+	// this waits only until, all append_log_record calls that were allotted be written to buffer (they may scroll if they will)
+	exclusive_lock(&(wale_p->append_only_buffer_lock), BLOCKING);
+
 	// if the buffer block count is 0, then WALe is not in writable state
 	if(wale_p->buffer_block_count == 0)
 	{
 		(*error) = ZERO_BUFFER_BLOCK_COUNT;
 		goto EXIT;
 	}
-
-	// get exclusive_lock on the append_only_buffer
-	// this waits only until, all append_log_record calls that were allotted be written to buffer (they may scroll if they will)
-	exclusive_lock(&(wale_p->append_only_buffer_lock), BLOCKING);
 
 	// we can not flush if there has been a major scroll error
 	if(wale_p->major_scroll_error)
