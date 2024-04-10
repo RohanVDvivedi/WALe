@@ -99,17 +99,24 @@ int resize_append_only_buffer(wale* wale_p, uint64_t new_buffer_block_count, int
 	{
 		read_lock(&(wale_p->flushed_log_records_lock), READ_PREFERRING, BLOCKING);
 
-		wale_p->in_memory_master_record = wale_p->on_disk_master_record;
+		master_record new_in_memory_master_record = wale_p->on_disk_master_record;
 
 		read_unlock(&(wale_p->flushed_log_records_lock));
 
-		uint64_t file_offset_for_next_log_sequence_number = read_latest_vacant_block_using_master_record(new_buffer, &(wale_p->in_memory_master_record), &(wale_p->block_io_functions), error);
+		// we can unlock the global lock here while we perform the read of a single block from disk
+		pthread_mutex_unlock(get_wale_lock(wale_p));
+
+		uint64_t file_offset_for_next_log_sequence_number = read_latest_vacant_block_using_master_record(new_buffer, &new_in_memory_master_record, &(wale_p->block_io_functions), error);
+
+		pthread_mutex_lock(get_wale_lock(wale_p));
+
 		if(*error)
 		{
 			free(new_buffer);
 			return 0;
 		}
 
+		wale_p->in_memory_master_record = new_in_memory_master_record;
 		wale_p->buffer_start_block_id = get_block_id_from_file_offset(file_offset_for_next_log_sequence_number, &(wale_p->block_io_functions));
 		wale_p->append_offset = get_block_offset_from_file_offset(file_offset_for_next_log_sequence_number, &(wale_p->block_io_functions));
 		wale_p->buffer = new_buffer;
