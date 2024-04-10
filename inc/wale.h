@@ -177,11 +177,12 @@ int validate_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_
 #define READ_IO_ERROR                        4
 #define WRITE_IO_ERROR                       5
 #define LOG_SEQUENCE_NUMBER_UNREPRESENTABLE  6 // the log_sequence_numbers on the existing file are too wide to be represented by large_uint
-#define LOG_SEQUENCE_NUMBER_OVERFLOW         7 // appending log record could not succeed, because the next_log_sequence_number will overflow
-#define MAJOR_SCROLL_ERROR                   8 // major scroll error occurred while scrolling the appendonly buffer, this is an error you can not recover from, your only alternative is to close the WALe and re open it, and to loose some unflushed log records
-#define HEADER_CORRUPTED                     9 // CRC-32 checksum of log header check failed
-#define LOG_RECORD_CORRUPTED                10 // CRC-32 checksum of log record check failed
-#define MASTER_RECORD_CORRUPTED             11 // CRC-32 checksum of master record check failed, OR the contents of master record are illogical
+#define FILE_OFFSET_OVERFLOW                 7 // appending log record could not succeed, because the file_offset for next log_record will overflow
+#define LOG_SEQUENCE_NUMBER_OVERFLOW         8 // appending log record could not succeed, because the next_log_sequence_number will overflow
+#define MAJOR_SCROLL_ERROR                   9 // major scroll error occurred while scrolling the appendonly buffer, this is an error you can not recover from, your only alternative is to close the WALe and re open it, and to loose some unflushed log records
+#define HEADER_CORRUPTED                    10 // CRC-32 checksum of log header check failed
+#define LOG_RECORD_CORRUPTED                11 // CRC-32 checksum of log record check failed
+#define MASTER_RECORD_CORRUPTED             12 // CRC-32 checksum of master record check failed, OR the contents of master record are illogical
 
 // -------------------------------------------------------------
 
