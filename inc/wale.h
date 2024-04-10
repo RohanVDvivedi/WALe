@@ -204,6 +204,9 @@ large_uint append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 // if the flush was unsuccessfull INVALID_LOG_SEQUENCE_NUMBER will be returned, in such a situation, it is best to exit the program
 large_uint flush_all_log_records(wale* wale_p, int* error);
 
+// returns the new last_flushed_log_sequence_number, after discarding all the unflushed records
+large_uint discard_unflushed_log_records(wale* wale_p, int* error);
+
 // truncates the log file logically, using only a write to the master record
 // making first_log_sequence_number, last_flushed_log_sequence_number and check_point_log_sequence_number = 0
 // next_log_sequence_number remains as it is, and that will be the next_log_sequence_number that will be alloted

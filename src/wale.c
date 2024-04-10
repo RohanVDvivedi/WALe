@@ -5,6 +5,7 @@
 #include<util_random_read.h>
 #include<util_append_only_buffer.h>
 #include<util_master_record.h>
+#include<block_io_ops_util.h>
 
 #include<rwlock.h>
 
@@ -773,6 +774,65 @@ large_uint flush_all_log_records(wale* wale_p, int* error)
 	write_unlock(&(wale_p->flushed_log_records_lock));
 
 	EXIT:;
+	if(wale_p->has_internal_lock)
+		pthread_mutex_unlock(get_wale_lock(wale_p));
+
+	return last_flushed_log_sequence_number;
+}
+
+large_uint discard_unflushed_log_records(wale* wale_p, int* error)
+{
+	if(wale_p->has_internal_lock)
+		pthread_mutex_lock(get_wale_lock(wale_p));
+
+	// default return value, on failure
+	large_uint last_flushed_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+
+	exclusive_lock(&(wale_p->append_only_buffer_lock), BLOCKING);
+
+	// read new in_memory_master_record
+	read_lock(&(wale_p->flushed_log_records_lock), READ_PREFERRING, BLOCKING);
+	master_record new_in_memory_master_record = wale_p->on_disk_master_record;
+	read_unlock(&(wale_p->flushed_log_records_lock));
+
+	// if the buffer block count is 0, then WALe is not in writable state
+	if(wale_p->buffer_block_count == 0)
+	{
+		(*error) = ZERO_BUFFER_BLOCK_COUNT;
+		goto EXIT;
+	}
+
+	// we did not scroll, but if there was a major scroll error we may aswell exit with a failure
+	if(wale_p->major_scroll_error)
+	{
+		(*error) = MAJOR_SCROLL_ERROR;
+		goto EXIT;
+	}
+
+	// update the contents of the append_only_buffer, by reading the latest bytes of flushed records from the disk
+	// we can release the global lock here, no worries
+	pthread_mutex_unlock(get_wale_lock(wale_p));
+
+	uint64_t file_offset_for_next_log_sequence_number = read_latest_vacant_block_using_master_record(wale_p->buffer, &new_in_memory_master_record, &(wale_p->block_io_functions), error);
+
+	pthread_mutex_lock(get_wale_lock(wale_p));
+
+	if(*error)
+		goto EXIT;
+
+	wale_p->in_memory_master_record = new_in_memory_master_record;
+	wale_p->buffer_start_block_id = get_block_id_from_file_offset(file_offset_for_next_log_sequence_number, &(wale_p->block_io_functions));
+	wale_p->append_offset = get_block_offset_from_file_offset(file_offset_for_next_log_sequence_number, &(wale_p->block_io_functions));
+	
+	// since after the above read call the append_only_buffer must contain more space to write, we will wake up any thread that is waiting for a scroll
+	pthread_cond_broadcast(&(wale_p->wait_for_scroll));
+
+	// return value
+	last_flushed_log_sequence_number = wale_p->in_memory_master_record.last_flushed_log_sequence_number;
+
+	EXIT:;
+	exclusive_unlock(&(wale_p->append_only_buffer_lock));
+
 	if(wale_p->has_internal_lock)
 		pthread_mutex_unlock(get_wale_lock(wale_p));
 
