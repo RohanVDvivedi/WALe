@@ -675,7 +675,6 @@ large_uint append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	// share_unlock the append_only_buffer
 	shared_unlock(&(wale_p->append_only_buffer_lock));
 
-	EXIT:;
 	if(wale_p->has_internal_lock)
 		pthread_mutex_unlock(get_wale_lock(wale_p));
 
