@@ -559,6 +559,9 @@ large_uint append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	// return value defaults to an INVALID_LOG_SEQUENCE_NUMBER
 	large_uint log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
+	// compute the total bytes we will write
+	uint64_t total_bytes_to_write = HEADER_SIZE + ((uint64_t)log_record_size) + UINT64_C(8); // 8 for the 2 crc32 values of the header and the log record each
+
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
@@ -578,6 +581,14 @@ large_uint append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 		uint64_t file_offset_for_next_log_sequence_number = get_file_offset_for_next_log_sequence_number(&(wale_p->in_memory_master_record), &(wale_p->block_io_functions), error);
 		if(*error)
 			goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
+
+		// this is the case when the file_offset_for_next_log_sequence_number is valid,
+		// but it will become invalid for the log_record that goes after it, so we fail preemptively
+		if(will_unsigned_sum_overflow(uint64_t, file_offset_for_next_log_sequence_number, total_bytes_to_write))
+		{
+			(*error) = FILE_OFFSET_OVERFLOW;
+			goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
+		}
 
 		if(!wale_p->major_scroll_error && wale_p->buffer_block_count > 0 &&
 			!is_file_offset_within_append_only_buffer(wale_p, file_offset_for_next_log_sequence_number))
@@ -610,9 +621,6 @@ large_uint append_log_record(wale* wale_p, const void* log_record, uint32_t log_
 	// exit suggesting failure to allocate a log_sequence_number
 	if(are_equal_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 		goto RELEASE_SHARE_LOCK_ON_APPEND_ONLY_BUFFER_AND_EXIT;
-
-	// compute the total bytes we will write
-	uint64_t total_bytes_to_write = HEADER_SIZE + ((uint64_t)log_record_size) + UINT64_C(8); // 8 for the 2 crc32 values of the header and the log record each
 
 	// now take the slot in the append only buffer
 	uint64_t append_slot = wale_p->append_offset;
