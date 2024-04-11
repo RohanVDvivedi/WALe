@@ -106,6 +106,8 @@ struct wale
 	// protected by global lock (get_wale_lock(wale_p))
 	uint64_t append_offset;
 
+	// in_memory_master_record must be accessed only while holding append_only_buffer_lock, either in shared or exclusive mode and the global lock (get_wale_lock(wale_p))
+
 	// this bit will be set, when an unrecoverable scroll error occurs, this error needs a restart of your system
 	// which will also mean a loss of certain wal log records
 	// protected by global lock
