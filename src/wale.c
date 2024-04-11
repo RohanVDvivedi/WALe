@@ -700,6 +700,7 @@ large_uint flush_all_log_records(wale* wale_p, int* error)
 	if(wale_p->buffer_block_count == 0)
 	{
 		(*error) = ZERO_BUFFER_BLOCK_COUNT;
+		exclusive_unlock(&(wale_p->append_only_buffer_lock));
 		goto EXIT;
 	}
 
