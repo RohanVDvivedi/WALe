@@ -107,7 +107,7 @@ struct wale
 	uint64_t append_offset;
 
 	// in_memory_master_record and the append_offset must be accessed only while holding append_only_buffer_lock, either in shared or exclusive mode and the global lock (get_wale_lock(wale_p))
-	// This allows us to release the global lock and then grab the global lock again, while holding append_only_buffer_lock, yet ensuring that the above 2 fields would not have changed
+	// This allows us to release the global lock while performing io and then grab the global lock again, while still holding append_only_buffer_lock (doesn't matter shared or exclusive), thus ensuring that the above 2 fields would not have changed
 	// Any modifications to append_offset or the in_memory_master_record must trigger the wait_for_scroll, hence any updates to them must happen inside the global mutex lock
 	// Such elaborate locking scheme, allows us to release the global mutex lock, while performing read and write io-s
 
