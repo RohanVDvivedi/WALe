@@ -1,7 +1,7 @@
 # WALe
 This is a library implementation of a Write Ahead Log (WAL) for use in building a database storage engine.
 
-This library supports variable length log_sequence_numbers (predetermined before initializing WALe instance), upto 16 bytes. i.e. with a 10,000 MBps disk drive, you do not need to worry about the overflow for about 10^21 years (i.e. 1 billion trillion years)
+This library supports variable length log_sequence_numbers (predetermined before initializing WALe instance), upto 32 bytes. i.e. with a 10,000 MBps disk drive, you do not need to worry about the overflow for about 10^59 years.
 
 It supports, crc32 check for each one your log records inserted.
 
