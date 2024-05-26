@@ -8,10 +8,10 @@
 #include<rwlock.h>
 
 #include<block_io_ops.h>
-#include<large_uint.h>
+#include<large_uints.h>
 
 // 0 log sequence number will never show up in the wal file
-#define INVALID_LOG_SEQUENCE_NUMBER LARGE_UINT_ZERO
+#define INVALID_LOG_SEQUENCE_NUMBER get_0_uint256()
 
 /*
 	Each log record has the following format.
@@ -36,20 +36,20 @@
 typedef struct master_record master_record;
 struct master_record
 {
-	// width of large_uint to use in bytes
+	// width of uint256 to use in bytes
 	uint32_t log_sequence_number_width;
 
 	// the log sequence number at offset block_io_functions.block_size in the block file
-	large_uint first_log_sequence_number;
+	uint256 first_log_sequence_number;
 
 	// the last log sequence number flushed to the disk
-	large_uint last_flushed_log_sequence_number;
+	uint256 last_flushed_log_sequence_number;
 
 	// log sequence number of the latest flushed checkpoint log record
-	large_uint check_point_log_sequence_number;
+	uint256 check_point_log_sequence_number;
 
 	// next log sequence number to allot
-	large_uint next_log_sequence_number;
+	uint256 next_log_sequence_number;
 };
 
 typedef struct wale wale;
@@ -128,7 +128,7 @@ struct wale
 	// --------------------------------------------------------
 
 	// no log_sequence_number addition must cross this limit, if it crosses then it is an overflow in all of the system
-	large_uint max_limit;
+	uint256 max_limit;
 };
 
 /*
@@ -143,7 +143,7 @@ struct wale
 // else
 //   -> a new wale file is initialized, a brand new master_record is written to disk
 
-int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, large_uint next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, int* error);
+int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, int* error);
 
 void deinitialize_wale(wale* wale_p);
 
@@ -152,13 +152,13 @@ void deinitialize_wale(wale* wale_p);
 
 uint32_t get_log_sequence_number_width(wale* wale_p);
 
-large_uint get_first_log_sequence_number(wale* wale_p);
+uint256 get_first_log_sequence_number(wale* wale_p);
 
-large_uint get_last_flushed_log_sequence_number(wale* wale_p);
+uint256 get_last_flushed_log_sequence_number(wale* wale_p);
 
-large_uint get_check_point_log_sequence_number(wale* wale_p);
+uint256 get_check_point_log_sequence_number(wale* wale_p);
 
-large_uint get_next_log_sequence_number(wale* wale_p);
+uint256 get_next_log_sequence_number(wale* wale_p);
 
 // -------------------------------------------------------------
 // random reads in log file are done by the below functions
@@ -166,15 +166,15 @@ large_uint get_next_log_sequence_number(wale* wale_p);
 // and only while both of which are valid (!= INVALID_LOG_SEQUENCE_NUMBER)
 // this implies: you can only read a log_record, if it has been flushed
 
-large_uint get_next_log_sequence_number_of(wale* wale_p, large_uint log_sequence_number, int* error);
+uint256 get_next_log_sequence_number_of(wale* wale_p, uint256 log_sequence_number, int* error);
 
-large_uint get_prev_log_sequence_number_of(wale* wale_p, large_uint log_sequence_number, int* error);
+uint256 get_prev_log_sequence_number_of(wale* wale_p, uint256 log_sequence_number, int* error);
 
 // you must free the returned memory
-void* get_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_t* log_record_size, int* error);
+void* get_log_record_at(wale* wale_p, uint256 log_sequence_number, uint32_t* log_record_size, int* error);
 
 // returns 1 if the log_record is not corrupted and passes all the crc checks (crc32 check for header and log_record itself)
-int validate_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_t* log_record_size, int* error);
+int validate_log_record_at(wale* wale_p, uint256 log_sequence_number, uint32_t* log_record_size, int* error);
 
 // On a failure of any of the above functions, error will be set to anyone of the below
 // in the increasing order of severity, we consider data corruption as non-recoverable
@@ -184,7 +184,7 @@ int validate_log_record_at(wale* wale_p, large_uint log_sequence_number, uint32_
 #define ALLOCATION_FAILED                    3
 #define READ_IO_ERROR                        4
 #define WRITE_IO_ERROR                       5
-#define LOG_SEQUENCE_NUMBER_UNREPRESENTABLE  6 // the log_sequence_numbers on the existing file are too wide to be represented by large_uint
+#define LOG_SEQUENCE_NUMBER_UNREPRESENTABLE  6 // the log_sequence_numbers on the existing file are too wide to be represented by uint256
 #define FILE_OFFSET_OVERFLOW                 7 // appending log record could not succeed, because the file_offset for next log_record will overflow
 #define LOG_SEQUENCE_NUMBER_OVERFLOW         8 // appending log record could not succeed, because the next_log_sequence_number will overflow
 #define MAJOR_SCROLL_ERROR                   9 // major scroll error occurred while scrolling the appendonly buffer, this is an error you can not recover from, your only alternative is to close the WALe and re open it, and to loose some unflushed log records
@@ -204,16 +204,16 @@ int modify_append_only_buffer_block_count(wale* wale_p, uint64_t buffer_block_co
 // check_point is marked to be updated in the master record, if is_check_point is set
 // the appended log_record is not permanent (neither is it's being checkpointed-ness) until a flush is successfull
 // if the append was unsuccessfull INVALID_LOG_SEQUENCE_NUMBER will be returned, in such a situation it is best to exit the program
-large_uint append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point, int* error);
+uint256 append_log_record(wale* wale_p, const void* log_record, uint32_t log_record_size, int is_check_point, int* error);
 
 // returns the last_flushed_log_sequence_number, after the flush
 // it will first ensure that all the appended log records have been flushed and then it will rewrite the master record and flush it
 // making it point to the new last_flushed_log_sequence_number, next_log_sequence_number and check_point_log_sequence_number
 // if the flush was unsuccessfull INVALID_LOG_SEQUENCE_NUMBER will be returned, in such a situation, it is best to exit the program
-large_uint flush_all_log_records(wale* wale_p, int* error);
+uint256 flush_all_log_records(wale* wale_p, int* error);
 
 // returns the new last_flushed_log_sequence_number, after discarding all the unflushed records
-large_uint discard_unflushed_log_records(wale* wale_p, int* error);
+uint256 discard_unflushed_log_records(wale* wale_p, int* error);
 
 // truncates the log file logically, using only a write to the master record
 // making first_log_sequence_number, last_flushed_log_sequence_number and check_point_log_sequence_number = 0

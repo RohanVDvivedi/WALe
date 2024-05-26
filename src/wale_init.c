@@ -8,7 +8,7 @@
 
 #include<cutlery_stds.h>
 
-int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, large_uint next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, int* error)
+int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, int* error)
 {
 	wale_p->has_internal_lock = (external_lock == NULL);
 
@@ -19,7 +19,7 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, large_uint
 
 	wale_p->block_io_functions = block_io_functions;
 
-	if(are_equal_large_uint(next_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+	if(are_equal_uint256(next_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 	{
 		if(!read_master_record(&(wale_p->on_disk_master_record), &(wale_p->block_io_functions), error))
 			return 0;
@@ -27,7 +27,7 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, large_uint
 	else
 	{
 		// log_sequence_number width must be in range [1, LOG_SEQ_NR_MAX_BYTES], both inclusive
-		if(log_sequence_number_width == 0 || log_sequence_number_width > LARGE_UINT_MAX_BYTES)
+		if(log_sequence_number_width == 0 || log_sequence_number_width > get_max_bytes_uint256())
 		{
 			(*error) = PARAM_INVALID;
 			return 0;
@@ -49,8 +49,8 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, large_uint
 	initialize_rwlock(&(wale_p->flushed_log_records_lock), get_wale_lock(wale_p));
 	initialize_rwlock(&(wale_p->append_only_buffer_lock), get_wale_lock(wale_p));
 
-	wale_p->max_limit = LARGE_UINT_ZERO;
-	set_bit_in_large_uint(&(wale_p->max_limit), wale_p->in_memory_master_record.log_sequence_number_width * CHAR_BIT);
+	wale_p->max_limit = get_0_uint256();
+	set_bit_in_uint256(&(wale_p->max_limit), wale_p->in_memory_master_record.log_sequence_number_width * CHAR_BIT);
 
 	if(append_only_block_count == 0) // WALe is opened only for reading
 	{

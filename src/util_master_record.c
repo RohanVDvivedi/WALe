@@ -27,17 +27,17 @@ int read_master_record(master_record* mr, const block_io_ops* block_io_functions
 	// deserialize
 	mr->log_sequence_number_width = deserialize_uint32(mr_serial, sizeof(uint32_t));
 
-	if(mr->log_sequence_number_width == 0 || mr->log_sequence_number_width > LARGE_UINT_MAX_BYTES)
+	if(mr->log_sequence_number_width == 0 || mr->log_sequence_number_width > get_max_bytes_uint256())
 	{
 		(*error) = LOG_SEQUENCE_NUMBER_UNREPRESENTABLE;
 		free(mr_serial);
 		return 0;
 	}
 
-	mr->first_log_sequence_number = deserialize_large_uint(mr_serial + sizeof(uint32_t), mr->log_sequence_number_width);
-	mr->last_flushed_log_sequence_number = deserialize_large_uint(mr_serial + sizeof(uint32_t) + mr->log_sequence_number_width, mr->log_sequence_number_width);
-	mr->check_point_log_sequence_number = deserialize_large_uint(mr_serial + sizeof(uint32_t) + 2 * mr->log_sequence_number_width, mr->log_sequence_number_width);
-	mr->next_log_sequence_number = deserialize_large_uint(mr_serial + sizeof(uint32_t) + 3 * mr->log_sequence_number_width, mr->log_sequence_number_width);
+	mr->first_log_sequence_number = deserialize_uint256(mr_serial + sizeof(uint32_t), mr->log_sequence_number_width);
+	mr->last_flushed_log_sequence_number = deserialize_uint256(mr_serial + sizeof(uint32_t) + mr->log_sequence_number_width, mr->log_sequence_number_width);
+	mr->check_point_log_sequence_number = deserialize_uint256(mr_serial + sizeof(uint32_t) + 2 * mr->log_sequence_number_width, mr->log_sequence_number_width);
+	mr->next_log_sequence_number = deserialize_uint256(mr_serial + sizeof(uint32_t) + 3 * mr->log_sequence_number_width, mr->log_sequence_number_width);
 
 	uint32_t parsed_crc32 = deserialize_uint32(mr_serial + sizeof(uint32_t) + 4 * mr->log_sequence_number_width, sizeof(uint32_t));
 
@@ -67,10 +67,10 @@ int write_and_flush_master_record(const master_record* mr, const block_io_ops* b
 
 	// serialize
 	serialize_uint32(mr_serial, sizeof(uint32_t), mr->log_sequence_number_width);
-	serialize_large_uint(mr_serial + sizeof(uint32_t), mr->log_sequence_number_width, mr->first_log_sequence_number);
-	serialize_large_uint(mr_serial + sizeof(uint32_t) + mr->log_sequence_number_width, mr->log_sequence_number_width, mr->last_flushed_log_sequence_number);
-	serialize_large_uint(mr_serial + sizeof(uint32_t) + 2 * mr->log_sequence_number_width, mr->log_sequence_number_width, mr->check_point_log_sequence_number);
-	serialize_large_uint(mr_serial + sizeof(uint32_t) + 3 * mr->log_sequence_number_width, mr->log_sequence_number_width, mr->next_log_sequence_number);
+	serialize_uint256(mr_serial + sizeof(uint32_t), mr->log_sequence_number_width, mr->first_log_sequence_number);
+	serialize_uint256(mr_serial + sizeof(uint32_t) + mr->log_sequence_number_width, mr->log_sequence_number_width, mr->last_flushed_log_sequence_number);
+	serialize_uint256(mr_serial + sizeof(uint32_t) + 2 * mr->log_sequence_number_width, mr->log_sequence_number_width, mr->check_point_log_sequence_number);
+	serialize_uint256(mr_serial + sizeof(uint32_t) + 3 * mr->log_sequence_number_width, mr->log_sequence_number_width, mr->next_log_sequence_number);
 
 	// calculate crc32 for master record
 	uint32_t calculated_crc32 = crc32_init();
@@ -115,13 +115,13 @@ uint64_t read_latest_vacant_block_using_master_record(void* buffer, const master
 	return file_offset;
 }
 
-uint64_t get_file_offset_for_log_sequence_number(large_uint log_sequence_number, const master_record* mr, const block_io_ops* block_io_functions, int* error)
+uint64_t get_file_offset_for_log_sequence_number(uint256 log_sequence_number, const master_record* mr, const block_io_ops* block_io_functions, int* error)
 {
 	// if the wale has no records, OR the log_sequence_number is not within first and last_flushed log_sequence_number then fail
-	if( are_equal_large_uint(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
-		are_equal_large_uint(mr->first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
-		compare_large_uint(log_sequence_number, mr->first_log_sequence_number) < 0 ||
-		compare_large_uint(mr->last_flushed_log_sequence_number, log_sequence_number) < 0
+	if( are_equal_uint256(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
+		are_equal_uint256(mr->first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
+		compare_uint256(log_sequence_number, mr->first_log_sequence_number) < 0 ||
+		compare_uint256(mr->last_flushed_log_sequence_number, log_sequence_number) < 0
 		)
 	{
 		(*error) = PARAM_INVALID;
@@ -131,10 +131,10 @@ uint64_t get_file_offset_for_log_sequence_number(large_uint log_sequence_number,
 	// calculate the offset in file of the log_record at log_sequence_number
 	uint64_t file_offset; // = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 	{
-		large_uint temp;
-		if(	!sub_large_uint_underflow_safe(&temp, log_sequence_number, mr->first_log_sequence_number) ||
-			!add_large_uint_overflow_safe(&temp, temp, get_large_uint(block_io_functions->block_size), LARGE_UINT_ZERO) ||
-			!cast_large_uint_to_uint64(&file_offset, temp))
+		uint256 temp;
+		if(	!sub_underflow_safe_uint256(&temp, log_sequence_number, mr->first_log_sequence_number) ||
+			!add_overflow_safe_uint256(&temp, temp, get_uint256(block_io_functions->block_size), get_0_uint256()) ||
+			!cast_to_uint64_from_uint256(&file_offset, temp))
 		{
 			// this case will not ever happen, but just so to handle it
 			(*error) = PARAM_INVALID;
@@ -149,17 +149,17 @@ uint64_t get_file_offset_for_next_log_sequence_number(const master_record* mr, c
 {
 	// there are no log records on the disk, if the first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER
 	// then next_log_sequence_number is at the file_offset
-	if(are_equal_large_uint(mr->first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
+	if(are_equal_uint256(mr->first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 		return block_io_functions->block_size;
 
 	// calculate file_offset of next_log_sequence_number
 	// = next_log_sequence_number - first_log_sequence_number + block_size
 	uint64_t file_offset;
 	{
-		large_uint temp; // = next_log_sequence_number - first_log_sequence_number + block_size
-		if(	(!sub_large_uint_underflow_safe(&temp, mr->next_log_sequence_number, mr->first_log_sequence_number)) ||
-			(!add_large_uint_overflow_safe(&temp, temp, get_large_uint(block_io_functions->block_size), LARGE_UINT_ZERO)) ||
-			(!cast_large_uint_to_uint64(&file_offset, temp)) )
+		uint256 temp; // = next_log_sequence_number - first_log_sequence_number + block_size
+		if(	(!sub_underflow_safe_uint256(&temp, mr->next_log_sequence_number, mr->first_log_sequence_number)) ||
+			(!add_overflow_safe_uint256(&temp, temp, get_uint256(block_io_functions->block_size), get_0_uint256())) ||
+			(!cast_to_uint64_from_uint256(&file_offset, temp)) )
 		{
 			// this implies master record is corrupted
 			(*error) = MASTER_RECORD_CORRUPTED;
