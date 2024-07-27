@@ -10,6 +10,8 @@
 
 // both of the below functions must be called with atleast a shared lock held on wale_p->flushed_log_records_lock
 
+// if any of the below functions fail with a 0, then you may return READ_IO_ERROR error to external user
+
 // returns 1 on a successfull read, else returns 0
 int random_read_at(void* buffer, uint64_t buffer_size, uint64_t file_offset, const block_io_ops* block_io_functions);
 
