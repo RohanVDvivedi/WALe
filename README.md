@@ -5,6 +5,12 @@ This library supports variable length log_sequence_numbers (predetermined before
 
 It supports, crc32 check for each one your log records inserted.
 
+*Information on ARIES support :*
+ * after you perform an append_log_record, the append_only_buffer_lock is share-released and the you get the log_sequence_number of the new log record with global lock held (if using external lock).
+ * so no one is allowed to enter and flush the log records, until you release the global lock.
+ * this allows you to update the dirty page table (updating the page_id->recLSN map) and set the pageLSN on this newly dirty page, while global lock is still held.
+ * this ensures that the log is persistent, only after the dirty page table is updated, and that the append of the log record is atomic with its update to the dirty page table, and the update of the pageLSN of the dirty page.
+
 ## Setup instructions
 **Install dependencies :**
  * [Cutlery](https://github.com/RohanVDvivedi/Cutlery)
