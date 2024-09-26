@@ -1,4 +1,2 @@
 FUTURE
- * test case for concurrent log truncation
- * build a new project Filed_WALe -> WALe that manages multiple WALe files (named 0 to 2^64-1) of fixed maximum sizes (lets say (more than 32 MB ofcourse) 128 MB each), each new one starting at the next log_seq_nr of the previous number, and with file name 1 more than a previous number (and with extension .log). and WALe structs for which are managed as cutlery array. and an API which suggests the last log record of concern, so that WALe can trash old log files.
- * build a Filed_WALe_TS -> FiledWALe extended with redo and undo, and log serialization functions for TupleStore, with api similar to Page Modification functions.
+ * test case for concurrent log truncation and discard_unflushed_log_records
