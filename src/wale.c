@@ -729,7 +729,7 @@ uint256 flush_all_log_records(wale* wale_p, int* error)
 	pthread_cond_broadcast(&(wale_p->wait_for_scroll));
 
 	// copy the valid values for flushing the on disk master record, before we release the global mutex lock
-	master_record new_on_disk_master_record = wale_p->in_memory_master_record;
+	const master_record new_on_disk_master_record = wale_p->in_memory_master_record;
 
 	// we now need to write the new_on_disk_master_record to the on_disk_master_record and the actual on-disk master record, with respective flushes
 	write_lock(&(wale_p->flushed_log_records_lock), BLOCKING);
@@ -744,8 +744,12 @@ uint256 flush_all_log_records(wale* wale_p, int* error)
 	// release the global lock
 	pthread_mutex_unlock(get_wale_lock(wale_p));
 
-	int flush_success = wale_p->block_io_functions.flush_all_writes(wale_p->block_io_functions.block_io_ops_handle) 
-	&& write_and_flush_master_record(&new_on_disk_master_record, &(wale_p->block_io_functions), error);
+	int flush_success = 0;
+	if(are_equal_master_records(&new_on_disk_master_record, &(wale_p->on_disk_master_record))) // if the new_on_disk_master_record equals the current on_disk_master_record, then flushes need not be performed
+		flush_success = 1;
+	else
+		flush_success = wale_p->block_io_functions.flush_all_writes(wale_p->block_io_functions.block_io_ops_handle) 
+		&& write_and_flush_master_record(&new_on_disk_master_record, &(wale_p->block_io_functions), error);
 
 	if(flush_success)
 	{
