@@ -1,7 +1,2 @@
-PICKED
- * write a function to are_equal_master_record
-  * returns true if they are equal
- * while flushing fail if the in_memory_master_record equals on_disk_master_record
-
 FUTURE
  * test case for concurrent log truncation and discard_unflushed_log_records
