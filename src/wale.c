@@ -861,7 +861,7 @@ int truncate_log_records(wale* wale_p, int* error)
 	}
 
 	// next_log_sequence_number is not advanced
-	master_record new_master_record = {
+	const master_record new_master_record = {
 		.log_sequence_number_width = wale_p->in_memory_master_record.log_sequence_number_width,
 		.first_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER,
 		.check_point_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER,
