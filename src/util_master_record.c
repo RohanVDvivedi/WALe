@@ -169,3 +169,12 @@ uint64_t get_file_offset_for_next_log_sequence_number(const master_record* mr, c
 
 	return file_offset;
 }
+
+int are_equal_master_records(const master_record* mr1, const master_record* mr2)
+{
+	return (mr1->log_sequence_number_width == mr2->log_sequence_number_width) &&
+	are_equal_uint256(mr1->first_log_sequence_number, mr2->first_log_sequence_number) &&
+	are_equal_uint256(mr1->last_flushed_log_sequence_number, mr2->last_flushed_log_sequence_number) &&
+	are_equal_uint256(mr1->check_point_log_sequence_number, mr2->check_point_log_sequence_number) &&
+	are_equal_uint256(mr1->next_log_sequence_number, mr2->next_log_sequence_number);
+}

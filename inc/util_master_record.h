@@ -31,4 +31,7 @@ uint64_t get_file_offset_for_log_sequence_number(uint256 log_sequence_number, co
 // else return log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
 uint64_t get_file_offset_for_next_log_sequence_number(const master_record* mr, const block_io_ops* block_io_functions, int* error);
 
+// returns true if mr1 and mr2 are equal
+int are_equal_master_records(const master_record* mr1, const master_record* mr2);
+
 #endif
