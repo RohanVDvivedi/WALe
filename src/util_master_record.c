@@ -65,6 +65,9 @@ int write_and_flush_master_record(const master_record* mr, const block_io_ops* b
 		return 0;
 	}
 
+	// reset mr_serial bytes to 0s
+	memory_set(mr_serial, 0, block_io_functions->block_size);
+
 	// serialize
 	serialize_uint32(mr_serial, sizeof(uint32_t), mr->log_sequence_number_width);
 	serialize_uint256(mr_serial + sizeof(uint32_t), mr->log_sequence_number_width, mr->first_log_sequence_number);
