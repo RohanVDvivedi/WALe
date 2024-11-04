@@ -62,6 +62,7 @@ int resize_append_only_buffer(wale* wale_p, uint64_t new_buffer_block_count, int
 	uint64_t old_buffer_block_count = wale_p->buffer_block_count;
 
 	void* new_buffer = aligned_alloc(wale_p->block_io_functions.block_buffer_alignment, (new_buffer_block_count * wale_p->block_io_functions.block_size));
+	memory_set(new_buffer, 0, (new_buffer_block_count * wale_p->block_io_functions.block_size));
 
 	// failed memory allocation
 	if(new_buffer == NULL)

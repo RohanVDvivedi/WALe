@@ -62,6 +62,8 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 ne
 		wale_p->buffer = aligned_alloc(wale_p->block_io_functions.block_buffer_alignment, (append_only_block_count * wale_p->block_io_functions.block_size));
 		wale_p->buffer_block_count = append_only_block_count;
 
+		memory_set(wale_p->buffer, 0, (append_only_block_count * wale_p->block_io_functions.block_size));
+
 		if(wale_p->buffer == NULL)
 		{
 			(*error) = ALLOCATION_FAILED;
