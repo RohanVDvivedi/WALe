@@ -24,7 +24,7 @@ uint64_t read_latest_vacant_block_using_master_record(void* buffer, const master
 // if the log_sequence_number is not between first_log_sequence_number and last_flushed_log_sequence_number OR if first_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER, then a PARAM_INVALID is returned
 // else if any operation overflows, then MASTER_RECORD_CORRUPTED error is returned
 // = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
-uint64_t get_file_offset_for_log_sequence_number(uint256 log_sequence_number, const master_record* mr, const block_io_ops* block_io_functions, int* error);
+uint64_t get_file_offset_for_log_sequence_number(uint256 log_sequence_number, const master_record* mr, const block_io_ops* block_io_functions, int skip_flushed_checks, int* error);
 
 // returns MASTER_RECORD_CORRUPTED, if any operation overflows
 // if first_log_sequence_number == INVALID_LOG_SEQUENCE_NUMBER, then return wale_p->block_io_functions.block_size;
