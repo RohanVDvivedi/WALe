@@ -171,18 +171,18 @@ uint256 get_next_log_sequence_number_of(wale* wale_p, uint256 log_sequence_numbe
 	if(!parse_and_check_crc32_for_log_record_header_at(&hdr, file_offset_of_log_record, &(wale_p->block_io_functions), error))
 		goto EXIT;
 
+	uint64_t total_size_curr_log_record = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 4 for crc32 of the log record itself and 4 for crc32 of the header
+
+	// the next_log_sequence_number is right after this log_record
+	if(!add_overflow_safe_uint256(&next_log_sequence_number, log_sequence_number, get_uint256(total_size_curr_log_record), wale_p->max_limit))
+	{
+		(*error) = HEADER_CORRUPTED;
+		goto EXIT;
+	}
+
 	// perform the check for validity of next_log_sequence_number only if we are not allowed to skip_flushed_checks
 	if(!skip_flushed_checks)
 	{
-		uint64_t total_size_curr_log_record = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 4 for crc32 of the log record itself and 4 for crc32 of the header
-
-		// the next_log_sequence_number is right after this log_record
-		if(!add_overflow_safe_uint256(&next_log_sequence_number, log_sequence_number, get_uint256(total_size_curr_log_record), wale_p->max_limit))
-		{
-			(*error) = HEADER_CORRUPTED;
-			goto EXIT;
-		}
-
 		// next_log_sequence_number can not be higher than the on_disk_master_record.last_flushed_log_sequence_number
 		if(compare_uint256(next_log_sequence_number, wale_p->on_disk_master_record.last_flushed_log_sequence_number) > 0)
 		{
