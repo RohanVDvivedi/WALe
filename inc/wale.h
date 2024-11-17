@@ -212,6 +212,10 @@ uint256 append_log_record(wale* wale_p, const void* log_record, uint32_t log_rec
 // if the flush was unsuccessfull INVALID_LOG_SEQUENCE_NUMBER will be returned, in such a situation, it is best to exit the program
 uint256 flush_all_log_records(wale* wale_p, int* error);
 
+// the below function scrolls the append only buffer
+// this allows reading unflushed log records AND also makes room for more log records in append only buffer
+void scroll_append_only_buffer(wale* wale_p);
+
 // returns the new last_flushed_log_sequence_number, after discarding all the unflushed records
 uint256 discard_unflushed_log_records(wale* wale_p, int* error);
 
