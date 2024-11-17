@@ -30,13 +30,13 @@ void print_all_flushed_logs()
 			printf("(log_sequence_number="); print_uint256(log_sequence_number); printf(") (valid=%d) (error=%d)\n\n", valid, error);
 			exit(-1);
 		}
-		uint256 prev_log_sequence_number = get_prev_log_sequence_number_of(&walE, log_sequence_number, &error);
+		uint256 prev_log_sequence_number = get_prev_log_sequence_number_of(&walE, log_sequence_number, 0, &error);
 		if(error)
 			printf("error = %d\n", error);
-		uint256 next_log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, &error);
+		uint256 next_log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, 0, &error);
 		if(error)
 			printf("error = %d\n", error);
-		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size, &error);
+		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size, 0, &error);
 		if(error)
 			printf("error = %d\n", error);
 		printf("(log_sequence_number="); print_uint256(log_sequence_number); printf(") (prev="); print_uint256(prev_log_sequence_number); printf(") (next="); print_uint256(next_log_sequence_number); printf(") (size = %u): <%s>\n", log_record_size, log_record);

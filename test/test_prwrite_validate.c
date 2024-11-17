@@ -45,7 +45,7 @@ int main()
 	while(compare_uint256(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) != 0)
 	{
 		uint32_t log_record_size;
-		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size, &error);
+		char* log_record = (char*) get_log_record_at(&walE, log_sequence_number, &log_record_size, 0, &error);
 		if(error != NO_ERROR && error != PARAM_INVALID)
 		{
 			printf("error = %d\n", error);
@@ -61,7 +61,7 @@ int main()
 			printf("error at log_sequence_number = "); print_uint256(log_sequence_number); printf(" seen -> thread_id=%d log_number=%d\n", thread_id, log_number);
 			exit(-1);
 		}
-		log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, &error);
+		log_sequence_number = get_next_log_sequence_number_of(&walE, log_sequence_number, 0, &error);
 		if(error != NO_ERROR && error != PARAM_INVALID)
 		{
 			printf("error = %d\n", error);
