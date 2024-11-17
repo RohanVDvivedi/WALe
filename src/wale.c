@@ -367,7 +367,8 @@ int validate_log_record_at(wale* wale_p, uint256 log_sequence_number, uint32_t* 
 	int valid = 0;
 
 	// calculate the offset in file of the log_record at log_sequence_number
-	uint64_t file_offset_of_log_record = get_file_offset_for_log_sequence_number(log_sequence_number, &(wale_p->on_disk_master_record), &(wale_p->block_io_functions), error);
+	// do not allow skipping flush checks here
+	uint64_t file_offset_of_log_record = get_file_offset_for_log_sequence_number(log_sequence_number, &(wale_p->on_disk_master_record), &(wale_p->block_io_functions), 0, error);
 	if(*error)
 		goto EXIT;
 
