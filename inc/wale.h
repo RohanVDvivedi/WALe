@@ -166,12 +166,15 @@ uint256 get_next_log_sequence_number(wale* wale_p);
 // and only while both of which are valid (!= INVALID_LOG_SEQUENCE_NUMBER)
 // this implies: you can only read a log_record, if it has been flushed
 
-uint256 get_next_log_sequence_number_of(wale* wale_p, uint256 log_sequence_number, int* error);
+// An additional parameter skip_flushed_checks has been added (on 17th Nov'2024), if this flag is set it allows you to read unflushed but scrolled log records if they exist in the file
+// for all majiority of the operations skip_flushed_checks must be set to 0 for default operation, which is to allow reading only flushed log records
 
-uint256 get_prev_log_sequence_number_of(wale* wale_p, uint256 log_sequence_number, int* error);
+uint256 get_next_log_sequence_number_of(wale* wale_p, uint256 log_sequence_number, int skip_flushed_checks, int* error);
+
+uint256 get_prev_log_sequence_number_of(wale* wale_p, uint256 log_sequence_number, int skip_flushed_checks, int* error);
 
 // you must free the returned memory
-void* get_log_record_at(wale* wale_p, uint256 log_sequence_number, uint32_t* log_record_size, int* error);
+void* get_log_record_at(wale* wale_p, uint256 log_sequence_number, uint32_t* log_record_size, int skip_flushed_checks, int* error);
 
 // returns 1 if the log_record is not corrupted and passes all the crc checks (crc32 check for header and log_record itself)
 int validate_log_record_at(wale* wale_p, uint256 log_sequence_number, uint32_t* log_record_size, int* error);
