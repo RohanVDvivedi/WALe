@@ -277,20 +277,20 @@ void* get_log_record_at(wale* wale_p, uint256 log_sequence_number, uint32_t* log
 	if(!parse_and_check_crc32_for_log_record_header_at(&hdr, file_offset_of_log_record, &(wale_p->block_io_functions), error))
 		goto EXIT;
 
+	// make sure that we will not be reading past or at the offset of wale_p->on_disk_master_record.next_log_sequence_number
+	uint64_t total_log_size = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 8 for both the crc32-s
+
+	// make sure that the next_log_sequence_number of this log_record does not overflow
+	uint256 next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+	if(!add_overflow_safe_uint256(&next_log_sequence_number, log_sequence_number, get_uint256(total_log_size), wale_p->max_limit))
+	{
+		(*error) = PARAM_INVALID;
+		goto EXIT;
+	}
+
 	// perform the check for validity of next_log_sequence_number only if we are not allowed to skip_flushed_checks
 	if(!skip_flushed_checks)
 	{
-		// make sure that we will not be reading past or at the offset of wale_p->on_disk_master_record.next_log_sequence_number
-		uint64_t total_log_size = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 8 for both the crc32-s
-
-		// make sure that the next_log_sequence_number of this log_record does not overflow
-		uint256 next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
-		if(!add_overflow_safe_uint256(&next_log_sequence_number, log_sequence_number, get_uint256(total_log_size), wale_p->max_limit))
-		{
-			(*error) = PARAM_INVALID;
-			goto EXIT;
-		}
-
 		// the next log_sequence number of this log_record can not be more than the next log_sequence number of the on_disk_master_record
 		if(compare_uint256(next_log_sequence_number, wale_p->on_disk_master_record.next_log_sequence_number) > 0)
 		{
