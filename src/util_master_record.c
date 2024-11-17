@@ -122,7 +122,7 @@ uint64_t get_file_offset_for_log_sequence_number(uint256 log_sequence_number, co
 {
 	// if the wale has no records, OR the log_sequence_number is not within first and last_flushed log_sequence_number then fail
 	if( are_equal_uint256(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
-		are_equal_uint256(mr->first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER) ||
+		(!skip_flushed_checks && are_equal_uint256(mr->first_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER)) ||  // this check is to be done only if we are not allowed to skip_flush_checks
 		compare_uint256(log_sequence_number, mr->first_log_sequence_number) < 0 ||
 		(!skip_flushed_checks && compare_uint256(mr->last_flushed_log_sequence_number, log_sequence_number) < 0) // this check is to be done only if we are not allowed to skip_flush_checks
 		)
@@ -131,11 +131,17 @@ uint64_t get_file_offset_for_log_sequence_number(uint256 log_sequence_number, co
 		return 0;
 	}
 
+	// in this file for this master record
+	// the LSN_assigned_from is either from first_log_sequence_number OR next_log_sequence_number, if the first_log_sequence_number is INVALID_LOG_SEQUENCE_NUMBER
+	uint256 LSN_assigned_from = mr->first_log_sequence_number;
+	if(are_equal_uint256(LSN_assigned_from, INVALID_LOG_SEQUENCE_NUMBER))
+		LSN_assigned_from = mr->next_log_sequence_number;
+
 	// calculate the offset in file of the log_record at log_sequence_number
-	uint64_t file_offset; // = log_sequence_number - wale_p->on_disk_master_record.first_log_sequence_number + wale_p->block_io_functions.block_size;
+	uint64_t file_offset; // = log_sequence_number - LSN_assigned_from + wale_p->block_io_functions.block_size;
 	{
 		uint256 temp;
-		if(	!sub_underflow_safe_uint256(&temp, log_sequence_number, mr->first_log_sequence_number) ||
+		if(	!sub_underflow_safe_uint256(&temp, log_sequence_number, LSN_assigned_from) ||
 			!add_overflow_safe_uint256(&temp, temp, get_uint256(block_io_functions->block_size), get_0_uint256()) ||
 			!cast_to_uint64_from_uint256(&file_offset, temp))
 		{
