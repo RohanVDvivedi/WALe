@@ -214,7 +214,7 @@ uint256 flush_all_log_records(wale* wale_p, int* error);
 
 // the below function scrolls the append only buffer
 // this allows reading unflushed log records AND also makes room for more log records in append only buffer
-void scroll_append_only_buffer(wale* wale_p);
+void scroll_append_only_buffer_inside_wale(wale* wale_p, int* error);
 
 // returns the new last_flushed_log_sequence_number, after discarding all the unflushed records
 uint256 discard_unflushed_log_records(wale* wale_p, int* error);

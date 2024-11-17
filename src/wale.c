@@ -777,6 +777,59 @@ uint256 flush_all_log_records(wale* wale_p, int* error)
 	return last_flushed_log_sequence_number;
 }
 
+// NOTE :: this is an external function, not to be used by internal functions
+void scroll_append_only_buffer_inside_wale(wale* wale_p, int* error)
+{
+	// initialize error to no error
+	(*error) = NO_ERROR;
+
+	if(wale_p->has_internal_lock)
+		pthread_mutex_lock(get_wale_lock(wale_p));
+
+	// get exclusive_lock on the append_only_buffer
+	// this waits only until, all append_log_record calls that were allotted be written to buffer (they may scroll if they will)
+	exclusive_lock(&(wale_p->append_only_buffer_lock), BLOCKING);
+
+	// if the buffer block count is 0, then WALe is not in writable state
+	if(wale_p->buffer_block_count == 0)
+	{
+		(*error) = ZERO_BUFFER_BLOCK_COUNT;
+		exclusive_unlock(&(wale_p->append_only_buffer_lock));
+		goto EXIT;
+	}
+
+	// we can not flush if there has been a major scroll error
+	if(wale_p->major_scroll_error)
+	{
+		// release exclusive lock and exit
+		(*error) = MAJOR_SCROLL_ERROR;
+		exclusive_unlock(&(wale_p->append_only_buffer_lock));
+		goto EXIT;
+	}
+
+	// perform a scroll
+	int scroll_success = scroll_append_only_buffer(wale_p);
+
+	// if scroll was a failure, set the 
+	if(!scroll_success)
+	{
+		wale_p->major_scroll_error = 1;
+		(*error) = MAJOR_SCROLL_ERROR;
+		exclusive_unlock(&(wale_p->append_only_buffer_lock));
+		goto EXIT;
+	}
+
+	// wake up any thread that was waiting for scroll to finish (even if there is scroll_error, we need to wake them up to let them know about it)
+	pthread_cond_broadcast(&(wale_p->wait_for_scroll));
+
+	// release exclusive lock after the scroll is complete
+	exclusive_unlock(&(wale_p->append_only_buffer_lock));
+
+	EXIT:;
+	if(wale_p->has_internal_lock)
+		pthread_mutex_unlock(get_wale_lock(wale_p));
+}
+
 uint256 discard_unflushed_log_records(wale* wale_p, int* error)
 {
 	if(wale_p->has_internal_lock)
