@@ -140,7 +140,7 @@ static int parse_and_check_crc32_for_log_record_header_at(log_record_header* res
 	return 1;
 }
 
-uint256 get_next_log_sequence_number_of(wale* wale_p, uint256 log_sequence_number, int* error)
+uint256 get_next_log_sequence_number_of(wale* wale_p, uint256 log_sequence_number, int skip_flushed_checks, int* error)
 {
 	// primary check, you may never provide INVALID_LOG_SEQUENCE_NUMBER
 	if(are_equal_uint256(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
@@ -157,9 +157,10 @@ uint256 get_next_log_sequence_number_of(wale* wale_p, uint256 log_sequence_numbe
 	// set it to INVALID_LOG_SEQUENCE_NUMBER, which is default result
 	uint256 next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
 
-	// next of last_flushed_log_sequence_number does not exists
-	if(are_equal_uint256(log_sequence_number, wale_p->on_disk_master_record.last_flushed_log_sequence_number))
-		goto EXIT;
+	// next of last_flushed_log_sequence_number does not exists, only to be done, if we are not allowed to skip_flushed_checks
+	if(!skip_flushed_checks)
+		if(are_equal_uint256(log_sequence_number, wale_p->on_disk_master_record.last_flushed_log_sequence_number))
+			goto EXIT;
 
 	// calculate the offset in file of the log_record at log_sequence_number
 	uint64_t file_offset_of_log_record = get_file_offset_for_log_sequence_number(log_sequence_number, &(wale_p->on_disk_master_record), &(wale_p->block_io_functions), error);
@@ -170,20 +171,24 @@ uint256 get_next_log_sequence_number_of(wale* wale_p, uint256 log_sequence_numbe
 	if(!parse_and_check_crc32_for_log_record_header_at(&hdr, file_offset_of_log_record, &(wale_p->block_io_functions), error))
 		goto EXIT;
 
-	uint64_t total_size_curr_log_record = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 4 for crc32 of the log record itself and 4 for crc32 of the header
-
-	// the next_log_sequence_number is right after this log_record
-	if(!add_overflow_safe_uint256(&next_log_sequence_number, log_sequence_number, get_uint256(total_size_curr_log_record), wale_p->max_limit))
+	// perform the check for validity of next_log_sequence_number only if we are not allowed to skip_flushed_checks
+	if(!skip_flushed_checks)
 	{
-		(*error) = HEADER_CORRUPTED;
-		goto EXIT;
-	}
+		uint64_t total_size_curr_log_record = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 4 for crc32 of the log record itself and 4 for crc32 of the header
 
-	// next_log_sequence_number can not be higher than the on_disk_master_record.last_flushed_log_sequence_number
-	if(compare_uint256(next_log_sequence_number, wale_p->on_disk_master_record.last_flushed_log_sequence_number) > 0)
-	{
-		(*error) = HEADER_CORRUPTED;
-		goto EXIT;
+		// the next_log_sequence_number is right after this log_record
+		if(!add_overflow_safe_uint256(&next_log_sequence_number, log_sequence_number, get_uint256(total_size_curr_log_record), wale_p->max_limit))
+		{
+			(*error) = HEADER_CORRUPTED;
+			goto EXIT;
+		}
+
+		// next_log_sequence_number can not be higher than the on_disk_master_record.last_flushed_log_sequence_number
+		if(compare_uint256(next_log_sequence_number, wale_p->on_disk_master_record.last_flushed_log_sequence_number) > 0)
+		{
+			(*error) = HEADER_CORRUPTED;
+			goto EXIT;
+		}
 	}
 
 	EXIT:;
@@ -192,7 +197,7 @@ uint256 get_next_log_sequence_number_of(wale* wale_p, uint256 log_sequence_numbe
 	return next_log_sequence_number;
 }
 
-uint256 get_prev_log_sequence_number_of(wale* wale_p, uint256 log_sequence_number, int* error)
+uint256 get_prev_log_sequence_number_of(wale* wale_p, uint256 log_sequence_number, int skip_flushed_checks, int* error)
 {
 	// primary check, you may never provide INVALID_LOG_SEQUENCE_NUMBER
 	if(are_equal_uint256(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
@@ -246,7 +251,7 @@ uint256 get_prev_log_sequence_number_of(wale* wale_p, uint256 log_sequence_numbe
 	return prev_log_sequence_number;
 }
 
-void* get_log_record_at(wale* wale_p, uint256 log_sequence_number, uint32_t* log_record_size, int* error)
+void* get_log_record_at(wale* wale_p, uint256 log_sequence_number, uint32_t* log_record_size, int skip_flushed_checks, int* error)
 {
 	// primary check, you may never provide INVALID_LOG_SEQUENCE_NUMBER
 	if(are_equal_uint256(log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
@@ -272,22 +277,26 @@ void* get_log_record_at(wale* wale_p, uint256 log_sequence_number, uint32_t* log
 	if(!parse_and_check_crc32_for_log_record_header_at(&hdr, file_offset_of_log_record, &(wale_p->block_io_functions), error))
 		goto EXIT;
 
-	// make sure that we will not be reading past or at the offset of wale_p->on_disk_master_record.next_log_sequence_number
-	uint64_t total_log_size = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 8 for both the crc32-s
-
-	// make sure that the next_log_sequence_number of this log_record does not overflow
-	uint256 next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
-	if(!add_overflow_safe_uint256(&next_log_sequence_number, log_sequence_number, get_uint256(total_log_size), wale_p->max_limit))
+	// perform the check for validity of next_log_sequence_number only if we are not allowed to skip_flushed_checks
+	if(!skip_flushed_checks)
 	{
-		(*error) = PARAM_INVALID;
-		goto EXIT;
-	}
+		// make sure that we will not be reading past or at the offset of wale_p->on_disk_master_record.next_log_sequence_number
+		uint64_t total_log_size = HEADER_SIZE + ((uint64_t)(hdr.curr_log_record_size)) + UINT64_C(8); // 8 for both the crc32-s
 
-	// the next log_sequence number of this log_record can not be more than the next log_sequence number of the on_disk_master_record
-	if(compare_uint256(next_log_sequence_number, wale_p->on_disk_master_record.next_log_sequence_number) > 0)
-	{
-		(*error) = PARAM_INVALID;
-		goto EXIT;
+		// make sure that the next_log_sequence_number of this log_record does not overflow
+		uint256 next_log_sequence_number = INVALID_LOG_SEQUENCE_NUMBER;
+		if(!add_overflow_safe_uint256(&next_log_sequence_number, log_sequence_number, get_uint256(total_log_size), wale_p->max_limit))
+		{
+			(*error) = PARAM_INVALID;
+			goto EXIT;
+		}
+
+		// the next log_sequence number of this log_record can not be more than the next log_sequence number of the on_disk_master_record
+		if(compare_uint256(next_log_sequence_number, wale_p->on_disk_master_record.next_log_sequence_number) > 0)
+		{
+			(*error) = PARAM_INVALID;
+			goto EXIT;
+		}
 	}
 
 	// calculate the offset of the log_record
