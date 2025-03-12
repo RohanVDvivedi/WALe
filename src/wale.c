@@ -771,7 +771,7 @@ uint256 flush_all_log_records(wale* wale_p, int* error)
 	}
 	else
 	{
-		if(*error == NO_ERROR)
+		if((*error) == NO_ERROR)
 			(*error) = WRITE_IO_ERROR;
 	}
 
