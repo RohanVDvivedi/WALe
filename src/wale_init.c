@@ -7,6 +7,7 @@
 #include<stdlib.h>
 
 #include<cutlery_stds.h>
+#include<pthread_cond_utils.h>
 
 int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, int* error)
 {
@@ -45,7 +46,7 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 ne
 
 	wale_p->in_memory_master_record = wale_p->on_disk_master_record;
 
-	pthread_cond_init(&(wale_p->wait_for_scroll), NULL);
+	pthread_cond_init_with_monotonic_clock(&(wale_p->wait_for_scroll));
 	initialize_rwlock(&(wale_p->flushed_log_records_lock), get_wale_lock(wale_p));
 	initialize_rwlock(&(wale_p->append_only_buffer_lock), get_wale_lock(wale_p));
 

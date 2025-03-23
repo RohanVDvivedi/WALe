@@ -15,6 +15,7 @@ It supports, crc32 check for each one your log records inserted.
 ## Setup instructions
 **Install dependencies :**
  * [Cutlery](https://github.com/RohanVDvivedi/Cutlery)
+ * [PosixUtils](https://github.com/RohanVDvivedi/PosixUtils)
  * [SerializableInteger](https://github.com/RohanVDvivedi/SerializableInteger)
  * [ReaderWriterLock](https://github.com/RohanVDvivedi/ReaderWriterLock)
  * [zlib](https://github.com/madler/zlib)      ($ sudo apt install zlib1g-dev)
