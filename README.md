@@ -34,8 +34,8 @@ It supports, crc32 check for each one your log records inserted.
 ## Using The library
  * add `-lwale -lrwlock -lpthread -lcutlery -lz` linker flag, while compiling your application
  * do not forget to include appropriate public api headers as and when needed. this includes
-   * `#include<wale.h>`
-   * `#include<block_io_ops.h>`
+   * `#include<wale/wale.h>`
+   * `#include<wale/block_io_ops.h>`
 
 ## Instructions for uninstalling library
 

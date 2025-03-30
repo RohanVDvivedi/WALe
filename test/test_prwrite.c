@@ -1,14 +1,14 @@
 #include<stdio.h>
 #include<stdlib.h>
 
-#include<block_io.h>
+#include<blockio/block_io.h>
 
-#include<wale.h>
+#include<wale/wale.h>
 
 #include<string.h>
 #include<errno.h>
 
-#include<executor.h>
+#include<boompar/executor.h>
 
 #define ADDITIONAL_FLAGS	0 //| O_DIRECT | O_SYNC
 #define FILENAME			"test.log"

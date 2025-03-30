@@ -1,7 +1,7 @@
 #ifndef UTIL_MASTER_RECORD_IO_H
 #define UTIL_MASTER_RECORD_IO_H
 
-#include<wale.h>
+#include<wale/wale.h>
 
 // no locks are acquired or released by the below functions
 // as expected, since it does not even have reference to any of the wale locks

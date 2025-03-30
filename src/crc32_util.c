@@ -1,6 +1,6 @@
-#include<crc32_util.h>
+#include<wale/crc32_util.h>
 
-#include<cutlery_math.h>
+#include<cutlery/cutlery_math.h>
 
 #include<zlib.h>
 

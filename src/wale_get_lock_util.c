@@ -1,4 +1,4 @@
-#include<wale_get_lock_util.h>
+#include<wale/wale_get_lock_util.h>
 
 pthread_mutex_t* get_wale_lock(wale* wale_p)
 {

@@ -1,7 +1,7 @@
-#include<util_random_read.h>
+#include<wale/util_random_read.h>
 
-#include<cutlery_stds.h>
-#include<cutlery_math.h>
+#include<cutlery/cutlery_stds.h>
+#include<cutlery/cutlery_math.h>
 
 #include<stdlib.h>
 
@@ -37,7 +37,7 @@ int random_read_at(void* buffer, uint64_t buffer_size, uint64_t file_offset, con
 	return 1;
 }
 
-#include<crc32_util.h>
+#include<wale/crc32_util.h>
 
 // this function is implemented with minimal memory usage
 int crc32_at(uint32_t* crc, uint64_t data_size, uint64_t file_offset, const block_io_ops* block_io_functions)

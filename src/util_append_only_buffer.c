@@ -1,10 +1,10 @@
-#include<util_append_only_buffer.h>
+#include<wale/util_append_only_buffer.h>
 
-#include<wale_get_lock_util.h>
-#include<util_master_record.h>
-#include<block_io_ops_util.h>
+#include<wale/wale_get_lock_util.h>
+#include<wale/util_master_record.h>
+#include<wale/block_io_ops_util.h>
 
-#include<cutlery_stds.h>
+#include<cutlery/cutlery_stds.h>
 
 #include<stdlib.h>
 

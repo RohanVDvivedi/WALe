@@ -5,10 +5,10 @@
 #include<inttypes.h>
 #include<pthread.h>
 
-#include<rwlock.h>
+#include<rwlock/rwlock.h>
 
-#include<block_io_ops.h>
-#include<large_uints.h>
+#include<wale/block_io_ops.h>
+#include<serint/large_uints.h>
 
 // 0 log sequence number will never show up in the wal file
 #define INVALID_LOG_SEQUENCE_NUMBER get_0_uint256()

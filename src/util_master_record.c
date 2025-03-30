@@ -1,9 +1,9 @@
-#include<util_master_record.h>
+#include<wale/util_master_record.h>
 
-#include<block_io_ops_util.h>
-#include<crc32_util.h>
+#include<wale/block_io_ops_util.h>
+#include<wale/crc32_util.h>
 
-#include<serial_int.h>
+#include<serint/serial_int.h>
 
 #include<stdlib.h>
 

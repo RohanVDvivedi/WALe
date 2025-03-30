@@ -1,9 +1,9 @@
 #include<stdio.h>
 #include<stdlib.h>
 
-#include<block_io.h>
+#include<blockio/block_io.h>
 
-#include<wale.h>
+#include<wale/wale.h>
 
 #include<string.h>
 #include<errno.h>

@@ -1,9 +1,9 @@
-#include<block_io_ops_util.h>
+#include<wale/block_io_ops_util.h>
 
-#include<cutlery_stds.h>
-#include<cutlery_math.h>
+#include<cutlery/cutlery_stds.h>
+#include<cutlery/cutlery_math.h>
 
-#include<wale.h> // only to include errors
+#include<wale/wale.h> // only to include errors
 
 uint64_t get_block_id_from_file_offset(uint64_t file_offset, const block_io_ops* block_io_functions)
 {

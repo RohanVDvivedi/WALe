@@ -1,13 +1,13 @@
-#include<wale.h>
+#include<wale/wale.h>
 
-#include<wale_get_lock_util.h>
-#include<util_master_record.h>
-#include<block_io_ops_util.h>
+#include<wale/wale_get_lock_util.h>
+#include<wale/util_master_record.h>
+#include<wale/block_io_ops_util.h>
 
 #include<stdlib.h>
 
-#include<cutlery_stds.h>
-#include<pthread_cond_utils.h>
+#include<cutlery/cutlery_stds.h>
+#include<posixutils/pthread_cond_utils.h>
 
 int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, int* error)
 {

@@ -1,7 +1,7 @@
 #ifndef UTIL_APPEND_ONLY_BUFFER_H
 #define UTIL_APPEND_ONLY_BUFFER_H
 
-#include<wale.h>
+#include<wale/wale.h>
 
 
 // below function must be called with global lock (get_wale_lock(wale_p)) and a exclusive lock on the wale_p->append_only_buffer_lock held

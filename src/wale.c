@@ -1,18 +1,18 @@
-#include<wale.h>
+#include<wale/wale.h>
 
-#include<wale_get_lock_util.h>
-#include<crc32_util.h>
-#include<util_random_read.h>
-#include<util_append_only_buffer.h>
-#include<util_master_record.h>
-#include<block_io_ops_util.h>
+#include<wale/wale_get_lock_util.h>
+#include<wale/crc32_util.h>
+#include<wale/util_random_read.h>
+#include<wale/util_append_only_buffer.h>
+#include<wale/util_master_record.h>
+#include<wale/block_io_ops_util.h>
 
-#include<rwlock.h>
+#include<rwlock/rwlock.h>
 
-#include<serial_int.h>
+#include<serint/serial_int.h>
 
-#include<cutlery_stds.h>
-#include<cutlery_math.h>
+#include<cutlery/cutlery_stds.h>
+#include<cutlery/cutlery_math.h>
 
 #include<stdlib.h>
 
