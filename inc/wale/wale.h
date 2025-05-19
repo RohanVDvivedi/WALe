@@ -5,7 +5,7 @@
 #include<inttypes.h>
 #include<pthread.h>
 
-#include<rwlock/rwlock.h>
+#include<lockking/rwlock.h>
 
 #include<wale/block_io_ops.h>
 #include<serint/large_uints.h>

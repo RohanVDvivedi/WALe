@@ -25,7 +25,7 @@ CC:=gcc
 # compiler flags
 CFLAGS:=-Wall -O3 -I${INC_DIR}
 # linker flags, this will used to compile the binary
-LFLAGS:=-L${LIB_DIR} -l${PROJECT_NAME} -lrwlock -lpthread -lcutlery -lz
+LFLAGS:=-L${LIB_DIR} -l${PROJECT_NAME} -llockking -lpthread -lcutlery -lz
 # Archiver
 AR:=ar rcs
 

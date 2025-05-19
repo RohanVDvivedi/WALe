@@ -17,7 +17,7 @@ It supports, crc32 check for each one your log records inserted.
  * [Cutlery](https://github.com/RohanVDvivedi/Cutlery)
  * [PosixUtils](https://github.com/RohanVDvivedi/PosixUtils)
  * [SerializableInteger](https://github.com/RohanVDvivedi/SerializableInteger)
- * [ReaderWriterLock](https://github.com/RohanVDvivedi/ReaderWriterLock)
+ * [LockKing](https://github.com/RohanVDvivedi/LockKing)
  * [zlib](https://github.com/madler/zlib)      ($ sudo apt install zlib1g-dev)
 
 **Download source code :**
@@ -32,7 +32,7 @@ It supports, crc32 check for each one your log records inserted.
  * ***Once you have installed from source, you may discard the build by*** `make clean`
 
 ## Using The library
- * add `-lwale -lrwlock -lpthread -lcutlery -lz` linker flag, while compiling your application
+ * add `-lwale -llockking -lpthread -lcutlery -lz` linker flag, while compiling your application
  * do not forget to include appropriate public api headers as and when needed. this includes
    * `#include<wale/wale.h>`
    * `#include<wale/block_io_ops.h>`

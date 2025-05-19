@@ -7,7 +7,7 @@
 #include<wale/util_master_record.h>
 #include<wale/block_io_ops_util.h>
 
-#include<rwlock/rwlock.h>
+#include<lockking/rwlock.h>
 
 #include<serint/serial_int.h>
 
