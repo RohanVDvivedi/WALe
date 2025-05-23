@@ -106,7 +106,7 @@ int main()
 	for(int tid = 0; tid < THREAD_COUNT; tid++)
 	{
 		thread_ids[tid] = tid;
-		submit_job_executor(exe, append_logs, &(thread_ids[tid]), NULL, NULL, 0);
+		submit_job_executor(exe, append_logs, &(thread_ids[tid]), NULL, NULL, BLOCKING);
 	}
 
 	shutdown_executor(exe, 0);
