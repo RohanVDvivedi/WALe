@@ -100,7 +100,7 @@ int main()
 		return -1;
 	}
 
-	executor* exe = new_executor(FIXED_THREAD_COUNT_EXECUTOR, THREAD_COUNT, THREAD_COUNT + 32, 0, NULL, NULL, NULL);
+	executor* exe = new_executor(FIXED_THREAD_COUNT_EXECUTOR, THREAD_COUNT, THREAD_COUNT + 32, 0, NULL, NULL, NULL, 0);
 
 	int thread_ids[THREAD_COUNT];
 	for(int tid = 0; tid < THREAD_COUNT; tid++)
