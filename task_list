@@ -1,8 +1,2 @@
-SIBLING PROJECT
- * structurally similar to WALe, call it CirLog
- * a write ahead log that works with a fixed number of blocks each of fixed size
- * first one will be the master record and all the rest will be managed as circular buffer storing log records (with checksum) each with its header (also checksummed)
- * usecase journaling for filesystems in future
-
 FUTURE
  * test case for concurrent log truncation and discard_unflushed_log_records
