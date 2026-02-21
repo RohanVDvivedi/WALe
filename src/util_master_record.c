@@ -9,7 +9,7 @@
 
 int read_master_record(master_record* mr, const block_io_ops* block_io_functions, int* error)
 {
-	void* mr_serial = aligned_alloc(block_io_functions->block_size, block_io_functions->block_buffer_alignment);
+	void* mr_serial = aligned_alloc(block_io_functions->block_buffer_alignment, block_io_functions->block_size);
 	if(mr_serial == NULL)
 	{
 		(*error) = ALLOCATION_FAILED;
@@ -58,7 +58,7 @@ int read_master_record(master_record* mr, const block_io_ops* block_io_functions
 
 int write_and_flush_master_record(const master_record* mr, const block_io_ops* block_io_functions, int* error)
 {
-	void* mr_serial = aligned_alloc(block_io_functions->block_size, block_io_functions->block_buffer_alignment);
+	void* mr_serial = aligned_alloc(block_io_functions->block_buffer_alignment, block_io_functions->block_size);
 	if(mr_serial == NULL)
 	{
 		(*error) = ALLOCATION_FAILED;
