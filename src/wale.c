@@ -480,7 +480,10 @@ static uint256 get_log_sequence_number_for_next_log_record_and_advance_master_re
 			uint256 temp;
 			if(!sub_underflow_safe_uint256(&temp, wale_p->in_memory_master_record.next_log_sequence_number, wale_p->in_memory_master_record.last_flushed_log_sequence_number) ||
 				!cast_to_uint64_from_uint256(&prev_log_record_total_size, temp))
+			{
+				(*error) = MASTER_RECORD_CORRUPTED;
 				return INVALID_LOG_SEQUENCE_NUMBER;
+			}
 
 		}
 		(*prev_log_record_size) = prev_log_record_total_size - HEADER_SIZE - UINT64_C(8);
