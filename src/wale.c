@@ -642,40 +642,57 @@ uint256 append_log_record(wale* wale_p, const void* log_record, uint32_t log_rec
 	char bytes_for_uint32[4];
 	uint32_t calculated_crc32 = crc32_init();
 
+	int error_in_scroll = 0;
+
 	// write prev_log_record_size
 	serialize_uint32(bytes_for_uint32, sizeof(uint32_t), prev_log_record_size);
 	calculated_crc32 = crc32_util(calculated_crc32, bytes_for_uint32, 4);
-	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, error);
-	if(*error)
+	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, &error_in_scroll);
+	if(error_in_scroll)
+	{
+		(*error) = MAJOR_SCROLL_ERROR;
 		goto SCROLL_FAIL;
+	}
 
 	// write log_record_size
 	serialize_uint32(bytes_for_uint32, sizeof(uint32_t), log_record_size);
 	calculated_crc32 = crc32_util(calculated_crc32, bytes_for_uint32, 4);
-	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, error);
-	if(*error)
+	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, &error_in_scroll);
+	if(error_in_scroll)
+	{
+		(*error) = MAJOR_SCROLL_ERROR;
 		goto SCROLL_FAIL;
+	}
 
 	// write calculated_crc32
 	serialize_uint32(bytes_for_uint32, sizeof(uint32_t), calculated_crc32);
-	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, error);
-	if(*error)
+	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, &error_in_scroll);
+	if(error_in_scroll)
+	{
+		(*error) = MAJOR_SCROLL_ERROR;
 		goto SCROLL_FAIL;
+	}
 
 	// reinitialize the calculated_crc32
 	calculated_crc32 = crc32_init();
 
 	// write log record itself
-	append_log_record_data(wale_p, &append_slot, log_record, log_record_size, &total_bytes_to_write, error);
+	append_log_record_data(wale_p, &append_slot, log_record, log_record_size, &total_bytes_to_write, &error_in_scroll);
 	calculated_crc32 = crc32_util(calculated_crc32, log_record, log_record_size);
-	if(*error)
+	if(error_in_scroll)
+	{
+		(*error) = MAJOR_SCROLL_ERROR;
 		goto SCROLL_FAIL;
+	}
 
 	// write calculated_crc32
 	serialize_uint32(bytes_for_uint32, sizeof(uint32_t), calculated_crc32);
-	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, error);
-	if(*error)
+	append_log_record_data(wale_p, &append_slot, bytes_for_uint32, 4, &total_bytes_to_write, &error_in_scroll);
+	if(error_in_scroll)
+	{
+		(*error) = MAJOR_SCROLL_ERROR;
 		goto SCROLL_FAIL;
+	}
 
 	SCROLL_FAIL:;
 	pthread_mutex_lock(get_wale_lock(wale_p));
@@ -845,6 +862,9 @@ void scroll_append_only_buffer_inside_wale(wale* wale_p, int* error)
 
 uint256 discard_unflushed_log_records(wale* wale_p, int* error)
 {
+	// initialize error to no error
+	(*error) = NO_ERROR;
+
 	if(wale_p->has_internal_lock)
 		pthread_mutex_lock(get_wale_lock(wale_p));
 
