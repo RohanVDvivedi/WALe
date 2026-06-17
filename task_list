@@ -1,2 +1,0 @@
-FUTURE
- * test case for concurrent log truncation and discard_unflushed_log_records

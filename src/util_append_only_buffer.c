@@ -72,9 +72,9 @@ int resize_append_only_buffer(wale* wale_p, uint64_t new_buffer_block_count, int
 
 	if(old_buffer_block_count != 0)
 	{
-		// if the current content size of the append only buffer is greater than what the new_buffer can accomodate
+		// if the current content size of the append only buffer is greater than what the new_buffer can accomodate OR it would be completely full upon shrinking
 		// then scroll the append only buffer
-		if(wale_p->append_offset > new_buffer_block_count * wale_p->block_io_functions.block_size)
+		if(wale_p->append_offset >= new_buffer_block_count * wale_p->block_io_functions.block_size)
 		{
 			// scroll and replace
 			int scroll_error = !scroll_append_only_buffer(wale_p);
