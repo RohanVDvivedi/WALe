@@ -26,7 +26,11 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 ne
 	if(are_equal_uint256(next_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 	{
 		if(!read_master_record(&(wale_p->on_disk_master_record), &(wale_p->block_io_functions), error))
+		{
+			if(wale_p->has_internal_lock)
+				pthread_mutex_destroy(&(wale_p->internal_lock));
 			return 0;
+		}
 	}
 	else
 	{
@@ -34,6 +38,8 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 ne
 		if(log_sequence_number_width == 0 || log_sequence_number_width > get_max_bytes_uint256())
 		{
 			(*error) = PARAM_INVALID;
+			if(wale_p->has_internal_lock)
+				pthread_mutex_destroy(&(wale_p->internal_lock));
 			return 0;
 		}
 
@@ -44,7 +50,11 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 ne
 		wale_p->on_disk_master_record.next_log_sequence_number = next_log_sequence_number;
 
 		if(!write_and_flush_master_record(&(wale_p->on_disk_master_record), &(wale_p->block_io_functions), error))
+		{
+			if(wale_p->has_internal_lock)
+				pthread_mutex_destroy(&(wale_p->internal_lock));
 			return 0;
+		}
 	}
 
 	wale_p->in_memory_master_record = wale_p->on_disk_master_record;
@@ -67,6 +77,11 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 ne
 		if(wale_p->buffer == NULL)
 		{
 			(*error) = ALLOCATION_FAILED;
+			pthread_cond_destroy(&(wale_p->wait_for_scroll));
+			deinitialize_rwlock(&(wale_p->flushed_log_records_lock));
+			deinitialize_rwlock(&(wale_p->append_only_buffer_lock));
+			if(wale_p->has_internal_lock)
+				pthread_mutex_destroy(&(wale_p->internal_lock));
 			return 0;
 		}
 		wale_p->buffer_block_count = append_only_block_count;
@@ -77,6 +92,11 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 ne
 		if(*error)
 		{
 			free(wale_p->buffer);
+			pthread_cond_destroy(&(wale_p->wait_for_scroll));
+			deinitialize_rwlock(&(wale_p->flushed_log_records_lock));
+			deinitialize_rwlock(&(wale_p->append_only_buffer_lock));
+			if(wale_p->has_internal_lock)
+				pthread_mutex_destroy(&(wale_p->internal_lock));
 			return 0;
 		}
 
