@@ -55,7 +55,7 @@ struct master_record
 typedef struct wale wale;
 struct wale
 {
-	int has_internal_lock : 1;
+	unsigned int has_internal_lock : 1;
 	union
 	{
 		pthread_mutex_t* external_lock;
@@ -114,7 +114,7 @@ struct wale
 	// this bit will be set, when an unrecoverable scroll error occurs, this error needs a restart of your system
 	// which will also mean a loss of certain wal log records
 	// protected by global lock
-	int major_scroll_error : 1;
+	unsigned int major_scroll_error : 1;
 
 	// wait on this condition variable for the next scroll after which append_only_buffer contains the first byte for in_memory_master_record.next_log_sequence_number
 	// protected by global lock (get_wale_lock(wale_p))
