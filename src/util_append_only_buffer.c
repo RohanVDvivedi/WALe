@@ -7,6 +7,7 @@
 #include<cutlery/cutlery_stds.h>
 
 #include<stdlib.h>
+#include<string.h>
 
 int scroll_append_only_buffer(wale* wale_p)
 {
@@ -30,7 +31,7 @@ int scroll_append_only_buffer(wale* wale_p)
 	uint64_t new_buffer_start_block_id = wale_p->buffer_start_block_id + UINT_ALIGN_DOWN(wale_p->append_offset, wale_p->block_io_functions.block_size) / wale_p->block_io_functions.block_size;
 	uint64_t new_append_offset = wale_p->append_offset % wale_p->block_io_functions.block_size;
 
-	memory_move(wale_p->buffer, wale_p->buffer + UINT_ALIGN_DOWN(wale_p->append_offset, wale_p->block_io_functions.block_size), new_append_offset);
+	memmove(wale_p->buffer, wale_p->buffer + UINT_ALIGN_DOWN(wale_p->append_offset, wale_p->block_io_functions.block_size), new_append_offset);
 
 	wale_p->buffer_start_block_id = new_buffer_start_block_id;
 	wale_p->append_offset = new_append_offset;
@@ -87,7 +88,7 @@ int resize_append_only_buffer(wale* wale_p, uint64_t new_buffer_block_count, int
 			}
 		}
 
-		memory_move(new_buffer, wale_p->buffer, wale_p->append_offset);
+		memmove(new_buffer, wale_p->buffer, wale_p->append_offset);
 
 		free(wale_p->buffer);
 		wale_p->buffer = new_buffer;

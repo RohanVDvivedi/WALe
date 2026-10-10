@@ -15,6 +15,7 @@
 #include<cutlery/cutlery_math.h>
 
 #include<stdlib.h>
+#include<string.h>
 
 static void prefix_to_acquire_flushed_log_records_reader_lock(wale* wale_p)
 {
@@ -517,7 +518,7 @@ static uint64_t append_log_record_data(wale* wale_p, uint64_t* append_slot, cons
 	while(bytes_written < data_size)
 	{
 		uint64_t bytes_to_write = min(wale_p->buffer_block_count * wale_p->block_io_functions.block_size - (*append_slot), data_size - bytes_written);
-		memory_move(wale_p->buffer + (*append_slot), data + bytes_written, bytes_to_write);
+		memmove(wale_p->buffer + (*append_slot), data + bytes_written, bytes_to_write);
 		bytes_written += bytes_to_write;
 		(*append_slot) += bytes_to_write;
 		(*total_bytes_to_write_for_this_log_record) -= bytes_to_write;

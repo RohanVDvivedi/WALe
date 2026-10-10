@@ -4,6 +4,7 @@
 #include<cutlery/cutlery_math.h>
 
 #include<stdlib.h>
+#include<string.h>
 
 int random_read_at(void* buffer, uint64_t buffer_size, uint64_t file_offset, const block_io_ops* block_io_functions)
 {
@@ -31,7 +32,7 @@ int random_read_at(void* buffer, uint64_t buffer_size, uint64_t file_offset, con
 		return 0;
 	}
 
-	memory_move(buffer, blocks_of_concern + (file_offset % block_io_functions->block_size), buffer_size);
+	memmove(buffer, blocks_of_concern + (file_offset % block_io_functions->block_size), buffer_size);
 
 	free(blocks_of_concern);
 	return 1;
