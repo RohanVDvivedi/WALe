@@ -11,6 +11,7 @@ It supports, crc32 check for each one your log records inserted.
  * this allows you to update the dirty page table (updating the page_id->recLSN map) and set the pageLSN on this newly dirty page, while global lock is still held.
  * this ensures that the log is persistent, only after the dirty page table is updated, and that the append of the log record is atomic with its update to the dirty page table, and the update of the pageLSN of the dirty page.
  * This remains true for even the flush_all_log_records function, immediately after its return with the global external lock held you can update the flushedLSN, this will allow you to further implement logic in bufferpool to only flush dirty pages, that have their pageLSN greater than or equal to the global flushedLSN.
+ * It also supports a were_logs_flushed_to_disk() callback, getting called atomically with wal flushes. This can be used to update flushedLSN and even wake up committers waiting for an asynchronous flush of wal records.
 
 ## Setup instructions
 **Install dependencies :**
