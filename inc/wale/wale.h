@@ -120,6 +120,9 @@ struct wale
 	// protected by global lock (get_wale_lock(wale_p))
 	pthread_cond_t wait_for_scroll;
 
+	// the callback that gets called atomically with a wale's logs flushing, global_lock and flushed_log_records_lock will be held while this callback gets called, and you may not release it in the callback
+	void* flush_callback_handle;
+	void (*were_logs_flushed_to_disk)(void* flush_callback_handle, uint256 last_flushed_log_sequence_number);
 
 	// --------------------------------------------------------
 	// functions to perform contiguous block io
@@ -143,7 +146,7 @@ struct wale
 // else
 //   -> a new wale file is initialized, a brand new master_record is written to disk
 
-int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, int* error);
+int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, void (*were_logs_flushed_to_disk)(void* flush_callback_handle, uint256 last_flushed_log_sequence_number), void* flush_callback_handle, int* error);
 
 void deinitialize_wale(wale* wale_p);
 

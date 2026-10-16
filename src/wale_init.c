@@ -9,7 +9,7 @@
 #include<cutlery/cutlery_stds.h>
 #include<posixutils/pthread_cond_utils.h>
 
-int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, int* error)
+int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 next_log_sequence_number, pthread_mutex_t* external_lock, block_io_ops block_io_functions, uint64_t append_only_block_count, void (*were_logs_flushed_to_disk)(void* flush_callback_handle, uint256 last_flushed_log_sequence_number), void* flush_callback_handle, int* error)
 {
 	// start with ther being no error
 	(*error) = NO_ERROR;
@@ -22,6 +22,9 @@ int initialize_wale(wale* wale_p, uint32_t log_sequence_number_width, uint256 ne
 		wale_p->external_lock = external_lock;
 
 	wale_p->block_io_functions = block_io_functions;
+
+	wale_p->flush_callback_handle = flush_callback_handle;
+	wale_p->were_logs_flushed_to_disk = were_logs_flushed_to_disk;
 
 	if(are_equal_uint256(next_log_sequence_number, INVALID_LOG_SEQUENCE_NUMBER))
 	{

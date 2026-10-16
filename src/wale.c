@@ -798,6 +798,10 @@ uint256 flush_all_log_records(wale* wale_p, int* error)
 
 	pthread_mutex_lock(get_wale_lock(wale_p));
 
+	// take global lock and make callback on success, flushed_log_records_lock is already heald in exclusive mode
+	if(flush_success)
+		wale_p->were_logs_flushed_to_disk(wale_p->flush_callback_handle, last_flushed_log_sequence_number);
+
 	// release write lock on the flushed_log_records
 	write_unlock(&(wale_p->flushed_log_records_lock));
 
