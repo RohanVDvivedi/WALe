@@ -23,6 +23,7 @@
 #include<prwrite_specs.h>
 
 block_io_ops get_block_io_functions(const block_file* bf);
+void nop_were_logs_flushed_to_disk(void* flush_callback_handle, uint256 last_flushed_log_sequence_number);
 
 wale walE;
 
@@ -93,7 +94,7 @@ int main()
 	}
 
 	int init_error = 0;
-	if(!initialize_wale(&walE, 12, (new_file ? get_uint256(7) : INVALID_LOG_SEQUENCE_NUMBER), NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT, &init_error))
+	if(!initialize_wale(&walE, 12, (new_file ? get_uint256(7) : INVALID_LOG_SEQUENCE_NUMBER), NULL, get_block_io_functions(&bf), APPEND_ONLY_BUFFER_COUNT, nop_were_logs_flushed_to_disk, NULL, &init_error))
 	{
 		printf("failed to create wale instance wale_erro = %d (error = %d on fd = %d)\n", init_error, errno, bf.file_descriptor);
 		close_block_file(&bf);

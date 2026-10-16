@@ -2,6 +2,8 @@
 
 #include<wale/block_io_ops.h>
 
+#include<serint/large_uints.h>
+
 int read_blocks(const void* block_io_ops_handle, void* dest, uint64_t block_id, uint64_t block_count)
 {
 	return read_blocks_from_block_file(((block_file*)block_io_ops_handle), dest, block_id, block_count);
@@ -27,4 +29,8 @@ block_io_ops get_block_io_functions(block_file* bf)
 		.write_blocks = write_blocks,
 		.flush_all_writes = flush_all_writes,
 	};
+}
+
+void nop_were_logs_flushed_to_disk(void* flush_callback_handle, uint256 last_flushed_log_sequence_number)
+{
 }
